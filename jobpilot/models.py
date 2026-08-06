@@ -61,6 +61,52 @@ class Job(BaseModel):
         return self
 
 
+class ActivityType(str, Enum):
+    """What the job seeker actually did. Values are the labels agencies expect."""
+
+    application = "Submitted application"
+    interview = "Interviewed"
+    contact = "Contacted employer"
+    networking = "Attended networking event"
+    job_fair = "Attended job fair"
+    workshop = "Attended workshop or training"
+    other = "Other"
+
+
+class ActivityResult(str, Enum):
+    pending = "Pending"
+    interviewing = "Interviewing"
+    rejected = "Rejected"
+    offered = "Offered"
+    no_response = "No response"
+    withdrawn = "Withdrawn"
+
+
+class WorkSearchActivity(BaseModel):
+    """One dated work-search action, for unemployment reporting.
+
+    Deliberately not tied to a Job: agencies count networking events, job fairs
+    and cold outreach too, none of which have a posting behind them.
+    """
+
+    id: str = ""
+    date: str = Field(default_factory=lambda: datetime.now().date().isoformat())
+    company: str = ""
+    position: str = ""
+    contact: str = ""            # name / phone / email / website, free text
+    activity_type: ActivityType = ActivityType.application
+    result: ActivityResult = ActivityResult.pending
+    notes: str = ""
+    job_id: Optional[str] = None  # set when it came from the pipeline
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+
+    def ensure_id(self) -> "WorkSearchActivity":
+        if not self.id:
+            basis = f"{self.date}|{self.company}|{self.position}|{self.activity_type.value}|{self.created_at}"
+            self.id = hashlib.sha1(basis.encode("utf-8")).hexdigest()[:16]
+        return self
+
+
 class ScreeningQA(BaseModel):
     question: str
     answer: str

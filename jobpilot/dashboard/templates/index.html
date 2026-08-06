@@ -45,7 +45,13 @@
         <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a></td>
         <td>{{ job.company }}</td>
         <td class="muted">{{ job.location or '—' }}</td>
-        <td><span class="pill">{{ job.status.value }}</span></td>
+        <td>
+          {% if job.status.value == 'applied' %}
+            <span class="pill tone-ok">✓ applied</span>
+          {% else %}
+            <span class="pill">{{ job.status.value }}</span>
+          {% endif %}
+        </td>
         <td>
           {% if job.prep_status == PrepStatus.complete %}
             <a href="/job/{{ job.id }}/prep" class="pill tone-ok">✓ prep ready</a>

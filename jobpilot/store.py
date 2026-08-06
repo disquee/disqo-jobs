@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from typing import Iterator, Optional
 
 from .config import DB_PATH
-from .models import Application, Job, Status
+from .models import Application, Job, Status, WorkSearchActivity
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -29,6 +29,13 @@ CREATE TABLE IF NOT EXISTS applications (
     data TEXT NOT NULL,
     FOREIGN KEY (job_id) REFERENCES jobs(id)
 );
+CREATE TABLE IF NOT EXISTS activities (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL,
+    job_id TEXT,
+    data TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
 """
 
 
@@ -117,3 +124,55 @@ def counts_by_status() -> dict[str, int]:
     with _conn() as c:
         rows = c.execute("SELECT status, COUNT(*) n FROM jobs GROUP BY status").fetchall()
     return {r["status"]: r["n"] for r in rows}
+
+
+# ---- work-search activities -------------------------------------------
+
+def save_activity(activity: WorkSearchActivity) -> WorkSearchActivity:
+    activity.ensure_id()
+    with _conn() as c:
+        c.execute(
+            "INSERT INTO activities (id, date, job_id, data) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET date = excluded.date, "
+            "job_id = excluded.job_id, data = excluded.data",
+            (activity.id, activity.date, activity.job_id, activity.model_dump_json()),
+        )
+    return activity
+
+
+def get_activity(activity_id: str) -> Optional[WorkSearchActivity]:
+    with _conn() as c:
+        row = c.execute("SELECT data FROM activities WHERE id = ?", (activity_id,)).fetchone()
+    return WorkSearchActivity.model_validate_json(row["data"]) if row else None
+
+
+def delete_activity(activity_id: str) -> None:
+    with _conn() as c:
+        c.execute("DELETE FROM activities WHERE id = ?", (activity_id,))
+
+
+def list_activities(
+    date_from: Optional[str] = None, date_to: Optional[str] = None
+) -> list[WorkSearchActivity]:
+    """Newest first. Dates are inclusive ISO strings (YYYY-MM-DD)."""
+    sql = "SELECT data FROM activities"
+    clauses, params = [], []
+    if date_from:
+        clauses.append("date >= ?"); params.append(date_from)
+    if date_to:
+        clauses.append("date <= ?"); params.append(date_to)
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY date DESC, rowid DESC"
+    with _conn() as c:
+        rows = c.execute(sql, params).fetchall()
+    return [WorkSearchActivity.model_validate_json(r["data"]) for r in rows]
+
+
+def activity_for_job(job_id: str) -> Optional[WorkSearchActivity]:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT data FROM activities WHERE job_id = ? ORDER BY date DESC LIMIT 1",
+            (job_id,),
+        ).fetchone()
+    return WorkSearchActivity.model_validate_json(row["data"]) if row else None

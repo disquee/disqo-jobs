@@ -9,24 +9,38 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from ..config import CSV_PATH, load_config
 from ..log_csv import append_application
-from ..models import Application, PrepStatus, ScreeningQA, Status
+from ..models import (
+    ActivityResult,
+    ActivityType,
+    Application,
+    PrepStatus,
+    ScreeningQA,
+    Status,
+    WorkSearchActivity,
+)
+from ..worklog import to_csv, to_xlsx, weekly_counts
 from ..pipeline.prep import ensure_job_prep, prep_html_path
 from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, render_pdf, resume_path
 from ..store import (
+    activity_for_job,
+    delete_activity,
+    get_activity,
     get_application,
     get_job,
     init_db,
+    list_activities,
     list_jobs,
+    save_activity,
     save_application,
     save_job,
 )
@@ -43,10 +57,12 @@ def _startup() -> None:
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     threshold = int(load_config().get("fit_threshold", 70))
-    jobs = sorted(
-        list_jobs(Status.tailored) + list_jobs(Status.scored) + list_jobs(Status.approved),
-        key=lambda j: j.fit_score or 0,
-        reverse=True,
+    # Applied jobs stay listed so the ✓ is visible at a glance, but sort under
+    # everything still needing action.
+    active = list_jobs(Status.tailored) + list_jobs(Status.scored) + list_jobs(Status.approved)
+    done = list_jobs(Status.applied)
+    jobs = sorted(active, key=lambda j: j.fit_score or 0, reverse=True) + sorted(
+        done, key=lambda j: j.fit_score or 0, reverse=True
     )
     return templates.TemplateResponse(
         request,
@@ -194,12 +210,113 @@ def do_mark_applied(job_id: str):
         append_application(job, application)
         job.status = Status.applied
         save_job(job)
+        # Record it in the work-search log unless this job is already logged.
+        if not activity_for_job(job.id):
+            save_activity(WorkSearchActivity(
+                date=application.date_applied,
+                company=job.company,
+                position=job.title,
+                contact=job.apply_url,
+                activity_type=ActivityType.application,
+                result=ActivityResult.pending,
+                job_id=job.id,
+            ))
     return RedirectResponse("/", status_code=303)
 
 
+def _range(date_from: str, date_to: str) -> tuple[str, str]:
+    return (date_from or "").strip(), (date_to or "").strip()
+
+
 @app.get("/applied", response_class=HTMLResponse)
-def applied(request: Request):
-    jobs = list_jobs(Status.applied)
+def applied(request: Request, date_from: str = "", date_to: str = ""):
+    """Work-search log: every dated action, exportable for unemployment reporting."""
+    date_from, date_to = _range(date_from, date_to)
+    activities = list_activities(date_from or None, date_to or None)
+    jobs = {j.id: j for j in list_jobs(Status.applied)}
     return templates.TemplateResponse(
-        request, "applied.html", {"jobs": jobs, "csv_path": str(CSV_PATH)}
+        request,
+        "applied.html",
+        {
+            "activities": activities,
+            "weekly": weekly_counts(activities),
+            "jobs": jobs,
+            "csv_path": str(CSV_PATH),
+            "date_from": date_from,
+            "date_to": date_to,
+            "types": list(ActivityType),
+            "results": list(ActivityResult),
+            "today": date.today().isoformat(),
+            "last_week": (date.today() - timedelta(days=7)).isoformat(),
+        },
+    )
+
+
+@app.post("/log/add")
+def log_add(
+    date_: str = Form("", alias="date"),
+    company: str = Form(""),
+    position: str = Form(""),
+    contact: str = Form(""),
+    activity_type: str = Form(ActivityType.application.value),
+    result: str = Form(ActivityResult.pending.value),
+    notes: str = Form(""),
+):
+    """Manual entry — networking events and cold outreach have no posting behind them."""
+    save_activity(WorkSearchActivity(
+        date=date_ or date.today().isoformat(),
+        company=company.strip(),
+        position=position.strip(),
+        contact=contact.strip(),
+        activity_type=ActivityType(activity_type),
+        result=ActivityResult(result),
+        notes=notes.strip(),
+    ))
+    return RedirectResponse("/applied", status_code=303)
+
+
+@app.post("/log/{activity_id}/update")
+def log_update(
+    activity_id: str,
+    result: str = Form(""),
+    notes: str = Form(""),
+    contact: str = Form(""),
+):
+    activity = get_activity(activity_id)
+    if activity:
+        if result:
+            activity.result = ActivityResult(result)
+        activity.notes = notes.strip()
+        activity.contact = contact.strip()
+        save_activity(activity)
+    return RedirectResponse("/applied", status_code=303)
+
+
+@app.post("/log/{activity_id}/delete")
+def log_delete(activity_id: str):
+    delete_activity(activity_id)
+    return RedirectResponse("/applied", status_code=303)
+
+
+@app.get("/log/export.csv")
+def export_csv(date_from: str = "", date_to: str = ""):
+    date_from, date_to = _range(date_from, date_to)
+    body = to_csv(list_activities(date_from or None, date_to or None))
+    name = f"work-search-log{'-' + date_from if date_from else ''}.csv"
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
+@app.get("/log/export.xlsx")
+def export_xlsx(date_from: str = "", date_to: str = ""):
+    date_from, date_to = _range(date_from, date_to)
+    body = to_xlsx(list_activities(date_from or None, date_to or None))
+    name = f"work-search-log{'-' + date_from if date_from else ''}.xlsx"
+    return Response(
+        content=body,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )

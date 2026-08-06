@@ -10,7 +10,8 @@
       <h1 class="page-title" style="font-size:1.3rem;">{{ job.title }}</h1>
       <p class="muted" style="margin-top:4px;">
         {{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}
-        · <span class="pill">{{ job.status.value }}</span>
+        · {% if job.status.value == 'applied' %}<span class="pill tone-ok">✓ applied</span>
+          {% else %}<span class="pill">{{ job.status.value }}</span>{% endif %}
       </p>
     </div>
     <div class="fit {{ 'hi' if (job.fit_score or 0) >= 70 else 'lo' }}" style="font-size:1.9rem;">

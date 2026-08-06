@@ -1,40 +1,156 @@
 {% extends "base.html" %}
 {% set nav = 'applied' %}
-{% block title %}Applied · jobpilot{% endblock %}
+{% block title %}Work search log · jobpilot{% endblock %}
+
 {% block content %}
 <div class="page-head">
-  <h1 class="page-title">Applied</h1>
-  <span class="page-sub">{{ jobs|length }} logged</span>
+  <h1 class="page-title">Work search log</h1>
+  <span class="page-sub">{{ activities|length }} activit{{ 'y' if activities|length == 1 else 'ies' }}
+    {%- if date_from or date_to %} in range{% endif %}</span>
 </div>
-<p class="muted" style="margin-bottom:14px; font-size:0.86rem;">CSV log: <code>{{ csv_path }}</code></p>
 
-{% if not jobs %}
-  <div class="tablecard"><div class="empty">
-    <p style="font-weight:600; color:var(--ink);">Nothing applied yet</p>
-    <p style="margin-top:5px;">Applications you mark applied show up here.</p>
-  </div></div>
-{% else %}
-<div class="tablecard"><div class="scroll">
-  <table>
-    <thead><tr><th>Title</th><th>Company</th><th>Location</th><th>Fit</th><th>Prep</th></tr></thead>
-    <tbody>
-    {% for job in jobs %}
-      <tr>
-        <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a></td>
-        <td>{{ job.company }}</td>
-        <td class="muted">{{ job.location or '—' }}</td>
-        <td class="fit">{{ job.fit_score if job.fit_score is not none else '—' }}</td>
-        <td>
-          {% if job.prep_status.value == 'complete' %}
-            <a href="/job/{{ job.id }}/prep" class="pill tone-ok">✓ prep ready</a>
-          {% elif job.prep_status.value == 'started' %}
-            <a href="/job/{{ job.id }}/prep" class="pill tone-accent">prep started</a>
-          {% else %}<span class="pill">—</span>{% endif %}
-        </td>
-      </tr>
+<div class="card">
+  <div class="row" style="justify-content:space-between; align-items:flex-end;">
+    <form method="get" action="/applied" class="row" style="gap:10px; align-items:flex-end;">
+      <label class="field">
+        <span>From</span>
+        <input type="date" name="date_from" value="{{ date_from }}">
+      </label>
+      <label class="field">
+        <span>To</span>
+        <input type="date" name="date_to" value="{{ date_to }}">
+      </label>
+      <button type="submit">Filter</button>
+      {% if date_from or date_to %}
+        <a class="btn secondary" href="/applied">Clear</a>
+      {% endif %}
+    </form>
+    <div class="row" style="gap:8px;">
+      <a class="btn" href="/log/export.xlsx?date_from={{ date_from }}&amp;date_to={{ date_to }}">Export .xlsx</a>
+      <a class="btn secondary" href="/log/export.csv?date_from={{ date_from }}&amp;date_to={{ date_to }}">Export .csv</a>
+      <button class="secondary" type="button" onclick="window.print()">Print</button>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:12px; font-size:0.83rem;">
+    Exports carry the columns agencies ask for — date, employer, position, contact,
+    type of work search, result, and notes — in the filtered range, oldest first.
+    <strong>Check your state's weekly minimum and required format before submitting.</strong>
+  </p>
+</div>
+
+{% if weekly %}
+<div class="card no-print">
+  <h3>Activities per week</h3>
+  <div class="row" style="gap:8px;">
+    {% for start, count in weekly %}
+      <span class="pill {{ 'tone-ok' if count >= 3 else 'tone-warn' }}">
+        week of {{ start }} · {{ count }}
+      </span>
     {% endfor %}
-    </tbody>
-  </table>
-</div></div>
+  </div>
+  <p class="muted" style="margin-top:10px; font-size:0.82rem;">
+    Weeks start Sunday. Green at 3+ is a common threshold, not legal advice —
+    confirm your state's requirement.
+  </p>
+</div>
 {% endif %}
+
+<div class="tablecard">
+  {% if not activities %}
+    <div class="empty">
+      <p style="font-weight:600; color:var(--ink);">No activities logged{% if date_from or date_to %} in this range{% endif %}</p>
+      <p style="margin-top:5px;">Marking a job applied logs it here automatically. Add anything
+        else — interviews, networking, cold outreach — below.</p>
+    </div>
+  {% else %}
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Company</th><th>Position</th><th>Contact</th>
+          <th>Type</th><th>Result</th><th>Notes</th><th class="no-print"></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for a in activities %}
+        <tr>
+          <td style="white-space:nowrap; font-family:var(--mono); font-size:0.84rem;">{{ a.date }}</td>
+          <td>
+            {% if a.job_id and a.job_id in jobs %}
+              <a class="jobtitle" href="/job/{{ a.job_id }}">{{ a.company or '—' }}</a>
+              <span class="pill tone-ok" title="Applied">✓</span>
+            {% else %}{{ a.company or '—' }}{% endif %}
+          </td>
+          <td>{{ a.position or '—' }}</td>
+          <td class="muted" style="max-width:220px; overflow-wrap:anywhere;">{{ a.contact or '—' }}</td>
+          <td><span class="pill">{{ a.activity_type.value }}</span></td>
+          <td>
+            <form method="post" action="/log/{{ a.id }}/update" class="row" style="gap:6px;">
+              <select name="result" onchange="this.form.submit()">
+                {% for r in results %}
+                  <option value="{{ r.value }}" {{ 'selected' if r == a.result }}>{{ r.value }}</option>
+                {% endfor %}
+              </select>
+              <input type="hidden" name="notes" value="{{ a.notes }}">
+              <input type="hidden" name="contact" value="{{ a.contact }}">
+            </form>
+            <span class="print-only">{{ a.result.value }}</span>
+          </td>
+          <td style="max-width:280px;">
+            <form method="post" action="/log/{{ a.id }}/update" class="row" style="gap:6px;">
+              <input type="hidden" name="result" value="{{ a.result.value }}">
+              <input type="hidden" name="contact" value="{{ a.contact }}">
+              <input type="text" name="notes" value="{{ a.notes }}"
+                     placeholder="Follow-up date, who you spoke with…" style="width:100%;">
+            </form>
+            <span class="print-only">{{ a.notes }}</span>
+          </td>
+          <td class="no-print">
+            <form method="post" action="/log/{{ a.id }}/delete"
+                  onsubmit="return confirm('Delete this log entry? Agencies may ask for records going back months.');">
+              <button class="danger tiny" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card no-print" style="margin-top:16px;">
+  <h3>Add an activity</h3>
+  <p class="muted" style="margin-bottom:12px; font-size:0.85rem;">
+    For anything the pipeline doesn't know about — an interview, a networking event,
+    a job fair, or an employer you contacted directly.
+  </p>
+  <form method="post" action="/log/add">
+    <div class="formgrid">
+      <label class="field"><span>Date</span>
+        <input type="date" name="date" value="{{ today }}" required></label>
+      <label class="field"><span>Company / employer</span>
+        <input type="text" name="company" placeholder="Acme Inc."></label>
+      <label class="field"><span>Position title</span>
+        <input type="text" name="position" placeholder="Technical Writer"></label>
+      <label class="field"><span>Contact information</span>
+        <input type="text" name="contact" placeholder="Name, phone, email, or website"></label>
+      <label class="field"><span>Type of work search</span>
+        <select name="activity_type">
+          {% for t in types %}<option value="{{ t.value }}">{{ t.value }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Result / status</span>
+        <select name="result">
+          {% for r in results %}<option value="{{ r.value }}">{{ r.value }}</option>{% endfor %}
+        </select></label>
+      <label class="field wide"><span>Notes</span>
+        <input type="text" name="notes" placeholder="Follow-up date, names of people you spoke with…"></label>
+    </div>
+    <div class="row" style="margin-top:14px;"><button type="submit">Add to log</button></div>
+  </form>
+</div>
+
+<p class="muted no-print" style="margin-top:14px; font-size:0.82rem;">
+  Raw application CSV (separate, written on “mark applied”): <code>{{ csv_path }}</code>
+</p>
 {% endblock %}
