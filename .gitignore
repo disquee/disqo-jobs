@@ -1,0 +1,23 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Personal profile (PII) — keep your real resume and profile out of git.
+# The *.example.* templates ARE committed.
+profile/profile.yaml
+profile/resume_master.md
+profile/star_stories.csv
+profile/projects/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Local data / generated artifacts
+jobpilot.db
+output/
+dist/

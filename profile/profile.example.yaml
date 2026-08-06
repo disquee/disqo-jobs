@@ -1,0 +1,46 @@
+# Copy to profile.yaml and fill in with your real details.
+# profile.yaml is gitignored so your PII never enters version control.
+#
+# Structured facts about you. Used for fit-scoring and to auto-fill
+# screening questions. Keep this accurate and truthful.
+
+name: "Your Name"
+email: "you@example.com"
+phone: "+1 555 555 5555"
+location: "City, State"
+linkedin: "https://www.linkedin.com/in/yourhandle"
+website: ""
+
+years_experience: 8
+seniority: "Senior"
+
+# Skills you can credibly claim. Used to score fit and tailor resumes.
+skills:
+  - Skill one
+  - Skill two
+  - Skill three
+
+# Preferences used to filter / rank
+desired_titles:
+  - "Senior Title"
+  - "Another Title"
+remote_ok: true
+min_salary_usd: 150000
+
+# Remote preferred. List metros you'd relocate to and ones to avoid.
+relocation_ok_locations:
+  - "City A"
+  - "City B"
+relocation_avoid_locations:
+  - "City C"
+
+# Default answers to common screening questions. The tailor step may
+# override per-posting, but these are sensible defaults.
+screening_defaults:
+  work_authorization: "Authorized to work in the US without sponsorship"
+  requires_sponsorship: "No"
+  willing_to_relocate: "Open to relocation, but prefer remote first"
+  years_of_experience: "8"
+  notice_period: "2 weeks"
+  desired_salary: "$150,000+"
+  start_date: "Within 2-4 weeks"

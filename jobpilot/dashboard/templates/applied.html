@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% set nav = 'applied' %}
+{% block title %}Applied · jobpilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Applied</h1>
+  <span class="page-sub">{{ jobs|length }} logged</span>
+</div>
+<p class="muted" style="margin-bottom:14px; font-size:0.86rem;">CSV log: <code>{{ csv_path }}</code></p>
+
+{% if not jobs %}
+  <div class="tablecard"><div class="empty">
+    <p style="font-weight:600; color:var(--ink);">Nothing applied yet</p>
+    <p style="margin-top:5px;">Applications you mark applied show up here.</p>
+  </div></div>
+{% else %}
+<div class="tablecard"><div class="scroll">
+  <table>
+    <thead><tr><th>Title</th><th>Company</th><th>Location</th><th>Fit</th><th>Prep</th></tr></thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr>
+        <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a></td>
+        <td>{{ job.company }}</td>
+        <td class="muted">{{ job.location or '—' }}</td>
+        <td class="fit">{{ job.fit_score if job.fit_score is not none else '—' }}</td>
+        <td>
+          {% if job.prep_status.value == 'complete' %}
+            <a href="/job/{{ job.id }}/prep" class="pill tone-ok">✓ prep ready</a>
+          {% elif job.prep_status.value == 'started' %}
+            <a href="/job/{{ job.id }}/prep" class="pill tone-accent">prep started</a>
+          {% else %}<span class="pill">—</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+{% endblock %}

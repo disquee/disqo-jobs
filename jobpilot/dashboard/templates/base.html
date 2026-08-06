@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}jobpilot{% endblock %}</title>
+<style>
+/* Shares the interview-prep page's design system: same OKLCH ramp, same
+   restrained accent, same light/dark handling. Keep the two in step. */
+:root {
+  --accent-h: 285;
+  --bg:        oklch(0.985 0.004 var(--accent-h));
+  --surface:   oklch(1 0 0);
+  --surface-2: oklch(0.965 0.006 var(--accent-h));
+  --line:      oklch(0.90 0.008 var(--accent-h));
+  --line-soft: oklch(0.94 0.006 var(--accent-h));
+  --ink:       oklch(0.22 0.02 var(--accent-h));
+  --ink-2:     oklch(0.36 0.02 var(--accent-h));
+  --muted:     oklch(0.44 0.02 var(--accent-h));
+  --accent:    oklch(0.50 0.19 var(--accent-h));
+  --accent-ink:oklch(0.42 0.19 var(--accent-h));
+  --accent-bg: oklch(0.955 0.03 var(--accent-h));
+  --on-accent: oklch(0.99 0.005 var(--accent-h));
+  --ok:        oklch(0.48 0.13 155);
+  --ok-bg:     oklch(0.955 0.035 155);
+  --warn:      oklch(0.48 0.15 55);
+  --warn-bg:   oklch(0.96 0.045 65);
+  --danger:    oklch(0.52 0.17 25);
+  --danger-bg: oklch(0.96 0.035 25);
+  --radius: 10px; --radius-sm: 6px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); --dur: 180ms;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow-1: 0 1px 2px oklch(0.22 0.02 var(--accent-h) / 0.06);
+}
+:root[data-theme="dark"] {
+  --bg:        oklch(0.175 0.014 var(--accent-h));
+  --surface:   oklch(0.215 0.016 var(--accent-h));
+  --surface-2: oklch(0.255 0.018 var(--accent-h));
+  --line:      oklch(0.33 0.02 var(--accent-h));
+  --line-soft: oklch(0.28 0.018 var(--accent-h));
+  --ink:       oklch(0.95 0.005 var(--accent-h));
+  --ink-2:     oklch(0.84 0.01 var(--accent-h));
+  --muted:     oklch(0.72 0.018 var(--accent-h));
+  --accent:    oklch(0.74 0.16 var(--accent-h));
+  --accent-ink:oklch(0.80 0.14 var(--accent-h));
+  --accent-bg: oklch(0.30 0.06 var(--accent-h));
+  --on-accent: oklch(0.16 0.02 var(--accent-h));
+  --ok:        oklch(0.78 0.14 155); --ok-bg: oklch(0.29 0.05 155);
+  --warn:      oklch(0.82 0.14 70);  --warn-bg: oklch(0.31 0.05 65);
+  --danger:    oklch(0.78 0.14 25);  --danger-bg: oklch(0.30 0.05 25);
+  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.30);
+}
+* { box-sizing: border-box; }
+body { margin:0; font-family:var(--sans); font-size:16px; line-height:1.55;
+       color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+h1,h2,h3 { margin:0; font-weight:650; letter-spacing:-0.011em; text-wrap:balance; }
+p { margin:0; }
+a { color:var(--accent-ink); text-decoration:none; }
+a:hover { text-decoration:underline; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+code { font-family:var(--mono); font-size:0.88em; background:var(--surface-2);
+       padding:1px 5px; border-radius:4px; }
+
+.topbar { position:sticky; top:0; z-index:300;
+  background:color-mix(in oklab, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
+.topbar-inner { max-width:1180px; margin:0 auto; padding:10px 20px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.brand { display:flex; align-items:baseline; gap:10px; margin-right:auto; }
+.brand-name { font-size:0.95rem; font-weight:650; white-space:nowrap; }
+.navlinks { display:flex; gap:2px; }
+.navlinks a { padding:5px 10px; border-radius:var(--radius-sm); font-size:0.86rem;
+  font-weight:550; color:var(--ink-2); }
+.navlinks a:hover { background:var(--surface-2); color:var(--ink); text-decoration:none; }
+.navlinks a.is-current { background:var(--accent-bg); color:var(--accent-ink); font-weight:650; }
+
+.search-wrap { position:relative; flex:1 1 220px; max-width:340px; }
+.search { width:100%; padding:7px 10px 7px 32px; font-size:0.88rem; color:var(--ink);
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius-sm);
+  transition:border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+.search::placeholder { color:var(--muted); }
+.search:focus { outline:none; border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent); }
+.search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  width:14px; height:14px; color:var(--muted); pointer-events:none; }
+
+.iconbtn { display:inline-grid; place-items:center; width:28px; height:28px; padding:0;
+  background:none; border:1px solid transparent; border-radius:var(--radius-sm);
+  color:var(--muted); cursor:pointer;
+  transition:background var(--dur) var(--ease), color var(--dur) var(--ease); }
+.iconbtn:hover { background:var(--surface-2); color:var(--ink); }
+.iconbtn svg { width:15px; height:15px; }
+
+.wrap { max-width:1180px; margin:0 auto; padding:26px 20px 80px; }
+.page-head { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+.page-title { font-size:1.5rem; }
+.page-sub { font-size:0.88rem; color:var(--muted); margin-left:auto; }
+
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:18px; margin-bottom:14px; }
+.card h3 { font-size:1rem; margin-bottom:10px; }
+.muted { color:var(--muted); }
+.row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+table { width:100%; border-collapse:collapse; }
+.tablecard { background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); overflow:hidden; }
+.tablecard .scroll { overflow-x:auto; }
+th, td { text-align:left; padding:11px 14px; border-bottom:1px solid var(--line-soft); }
+thead th { font-size:0.72rem; font-weight:650; letter-spacing:0.03em; text-transform:uppercase;
+  color:var(--muted); background:var(--surface-2); white-space:nowrap; }
+tbody tr:last-child td { border-bottom:0; }
+tbody tr { transition:background var(--dur) var(--ease); }
+tbody tr:hover { background:var(--surface-2); }
+tr.is-hidden { display:none; }
+.jobtitle { font-weight:600; color:var(--ink); }
+.jobtitle:hover { color:var(--accent-ink); }
+
+.fit { font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:700;
+  font-size:0.95rem; }
+.fit.hi { color:var(--ok); } .fit.lo { color:var(--warn); }
+
+.pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.72rem;
+  font-weight:650; background:var(--surface-2); color:var(--muted);
+  border:1px solid var(--line-soft); white-space:nowrap; }
+.pill.tone-ok   { background:var(--ok-bg);   color:var(--ok);   border-color:transparent; }
+.pill.tone-warn { background:var(--warn-bg); color:var(--warn); border-color:transparent; }
+.pill.tone-accent { background:var(--accent-bg); color:var(--accent-ink); border-color:transparent; }
+
+button, .btn { font:inherit; font-size:0.84rem; font-weight:550; padding:7px 13px;
+  border-radius:var(--radius-sm); border:1px solid transparent; cursor:pointer;
+  background:var(--accent); color:var(--on-accent); display:inline-block;
+  transition:filter var(--dur) var(--ease), background var(--dur) var(--ease); }
+button:hover, .btn:hover { filter:brightness(1.08); text-decoration:none; }
+.btn.secondary, button.secondary { background:var(--surface); color:var(--ink-2);
+  border-color:var(--line); }
+.btn.secondary:hover, button.secondary:hover { background:var(--surface-2); color:var(--ink); }
+.btn.danger, button.danger { background:var(--danger-bg); color:var(--danger);
+  border-color:color-mix(in oklab, var(--danger) 30%, transparent); }
+.btn.tiny { padding:4px 9px; font-size:0.76rem; }
+form.inline { display:inline; }
+
+textarea { width:100%; min-height:230px; padding:12px; color:var(--ink);
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius-sm);
+  font-family:var(--mono); font-size:13px; line-height:1.5; resize:vertical; }
+textarea:focus { outline:none; border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 16%, transparent); }
+
+pre.posting { white-space:pre-wrap; background:var(--bg); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:13px; max-height:320px; overflow:auto;
+  font-size:0.82rem; line-height:1.6; color:var(--ink-2); margin:0; }
+
+.empty { padding:36px 18px; text-align:center; color:var(--muted); }
+.hitcount { display:none; font-size:0.84rem; color:var(--muted); margin-bottom:12px; }
+body.is-searching .hitcount { display:block; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration:1ms !important; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="brand"><span class="brand-name">🛩️ jobpilot</span></span>
+    <nav class="navlinks">
+      <a href="/" class="{{ 'is-current' if nav == 'queue' else '' }}">Review queue</a>
+      <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Applied</a>
+    </nav>
+    {% block toolbar %}{% endblock %}
+    <button class="iconbtn" id="themeToggle" aria-label="Toggle light or dark theme">
+      <svg id="themeIcon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.5" aria-hidden="true"></svg>
+    </button>
+  </div>
+</header>
+<div class="wrap">{% block content %}{% endblock %}</div>
+<script>
+// Theme: same contract as the prep page — follow the system, remember an override.
+(function () {
+  var SUN = '<circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2 3.1 3.1"/>';
+  var MOON = '<path d="M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.9 5.9 0 1 0 7.1 7.1z"/>';
+  var KEY = "jobpilot-theme", store;
+  try { localStorage.setItem(KEY + "-probe", "1"); localStorage.removeItem(KEY + "-probe"); store = localStorage; }
+  catch (e) { store = { getItem: function () { return null; }, setItem: function () {} }; }
+  function apply(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById("themeIcon").innerHTML = t === "dark" ? MOON : SUN;
+  }
+  apply(store.getItem(KEY) || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+  document.getElementById("themeToggle").addEventListener("click", function () {
+    var next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    store.setItem(KEY, next); apply(next);
+  });
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

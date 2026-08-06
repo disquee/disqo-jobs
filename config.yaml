@@ -1,0 +1,30 @@
+# jobpilot configuration — starter. Edit freely.
+#
+# Matching notes:
+#   - Adzuna/Jooble full-text search query + location.
+#   - Greenhouse/Lever substring-match `query` against the job TITLE and ignore
+#     `location`, so keep queries to short phrases that appear in titles.
+
+searches:
+  - query: "your target role"
+    location: "Remote"
+  - query: "another target role"
+    location: "United States"
+
+# Company ATS boards to pull from (public JSON endpoints). `slug` is the company
+# identifier in the board URL; an unknown slug just returns nothing.
+ats:
+  greenhouse:
+    - stripe
+    - gitlab
+    - datadog
+  lever: []
+
+results_per_search: 25      # cap per source per query
+fit_threshold: 55           # 0-100; recalibrate for your model (see SETUP_PROMPT.md)
+max_apply_per_day: 15       # safety cap on assisted-apply actions
+
+exclude_title_keywords:
+  - "intern"
+  - "clearance"
+exclude_company: []

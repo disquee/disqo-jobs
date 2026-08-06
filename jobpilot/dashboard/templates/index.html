@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% set nav = 'queue' %}
+{% block title %}Review queue · jobpilot{% endblock %}
+
+{% block toolbar %}
+<div class="search-wrap">
+  <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+       stroke-width="1.6" aria-hidden="true">
+    <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/>
+  </svg>
+  <input class="search" id="search" type="search" autocomplete="off"
+         placeholder="Search title, company, location…" aria-label="Search jobs">
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Review queue</h1>
+  <span class="page-sub">Fit threshold {{ threshold }} · {{ jobs|length }} in queue</span>
+</div>
+
+<p class="hitcount" id="hitcount"></p>
+
+{% if not jobs %}
+  <div class="tablecard"><div class="empty">
+    <p style="font-weight:600; color:var(--ink);">Nothing in the queue</p>
+    <p style="margin-top:5px;">Run <code>jobpilot discover --tailor</code> to pull and score jobs.</p>
+  </div></div>
+{% else %}
+<div class="tablecard">
+  <div class="scroll">
+  <table id="jobs">
+    <thead>
+      <tr>
+        <th>Fit</th><th>Title</th><th>Company</th><th>Location</th>
+        <th>Status</th><th>Prep</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr data-search="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ job.location)|lower }}">
+        <td class="fit {{ 'hi' if (job.fit_score or 0) >= threshold else 'lo' }}">
+          {{ job.fit_score if job.fit_score is not none else '—' }}
+        </td>
+        <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a></td>
+        <td>{{ job.company }}</td>
+        <td class="muted">{{ job.location or '—' }}</td>
+        <td><span class="pill">{{ job.status.value }}</span></td>
+        <td>
+          {% if job.prep_status == PrepStatus.complete %}
+            <a href="/job/{{ job.id }}/prep" class="pill tone-ok">✓ prep ready</a>
+          {% elif job.prep_status == PrepStatus.started %}
+            <a href="/job/{{ job.id }}/prep" class="pill tone-accent">prep started</a>
+          {% else %}
+            <form class="inline" method="post" action="/job/{{ job.id }}/prep">
+              <button class="secondary tiny" type="submit">Create prep</button>
+            </form>
+          {% endif %}
+        </td>
+        <td><a href="/job/{{ job.id }}">Review →</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var input = document.getElementById("search");
+  var table = document.getElementById("jobs");
+  var count = document.getElementById("hitcount");
+  if (!input || !table) return;
+  var rows = [].slice.call(table.tBodies[0].rows);
+
+  function run() {
+    var q = input.value.trim().toLowerCase();
+    document.body.classList.toggle("is-searching", !!q);
+    if (!q) { rows.forEach(function (r) { r.classList.remove("is-hidden"); }); return; }
+    var hits = 0;
+    rows.forEach(function (r) {
+      var hit = r.dataset.search.indexOf(q) !== -1;
+      r.classList.toggle("is-hidden", !hit);
+      if (hit) hits++;
+    });
+    count.textContent = hits + (hits === 1 ? " job matches “" : " jobs match “") + input.value.trim() + "”";
+  }
+  input.addEventListener("input", run);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "/" && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) {
+      e.preventDefault(); input.focus(); input.select();
+    }
+    if (e.key === "Escape" && document.activeElement === input) { input.value = ""; run(); input.blur(); }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,249 @@
+{
+  "_comment": "Anonymized sample for `jobpilot prep`. Fictional company, role, and candidate. Demonstrates every section kind and every field a `qa` item supports. Copy this, replace the content, keep the shape.",
+
+  "meta": {
+    "title": "Northwind · Onsite",
+    "subtitle": "Documentation Lead — 2 interviews, 45 min each",
+    "file": "northwind-prep",
+    "order": ["brief", "checklist", "stories", "ops", "design", "people", "numbers", "resume"]
+  },
+
+  "panels": {
+    "ops":    { "name": "Priya Shah", "role": "Manager, Support Operations", "focus": "Knowledge Programs & Measurement" },
+    "design": { "name": "Dan Okafor", "role": "Manager, Content Design",     "focus": "Governance & Craft" }
+  },
+
+  "stories": [
+    { "id": "S1", "label": "Runbook consolidation", "metric": "Escalations down 38%", "rec": ["ops"] },
+    { "id": "S2", "label": "Release-notes template", "metric": "Review rounds 5 → 2", "rec": ["design"] },
+    { "id": "S3", "label": "Onboarding guide rebuild", "metric": "Ramp 10 days → 4", "rec": ["ops"] }
+  ],
+
+  "sections": [
+    {
+      "id": "brief", "nav": "The Loop", "title": "How to read this loop",
+      "lede": "Two interviews, back to back. **Priya is first**, so she sets the frame.",
+      "kind": "prose",
+      "blocks": [
+        { "type": "callout", "tone": "accent",
+          "html": "<p><strong>Order:</strong> 1. Priya Shah (Support Operations) → 2. Dan Okafor (Content Design).</p>" },
+        { "type": "h3", "text": "What the order changes" },
+        { "type": "ul", "items": [
+          "**Priya is first and owns the escalation queue.** Lead with S1 — it's her metric told back to her.",
+          "**Dan is a craft interviewer.** Governance answers that sound good but aren't specific won't survive."
+        ]},
+        { "type": "p", "text": "Rotate stories deliberately — *they compare notes afterward.*" }
+      ]
+    },
+
+    {
+      "id": "checklist", "nav": "Checklist", "title": "Before the loop",
+      "lede": "Decisions first, rehearsal second.",
+      "kind": "checklist",
+      "groups": [
+        {
+          "title": "1 · Decide and confirm",
+          "note": "An open question costs more than an unpolished answer.",
+          "items": [
+            { "id": "k1", "text": "Confirm the **salary band** with the recruiter.",
+              "detail": "Decide your number in advance so you can say it without hedging." },
+            { "id": "k2", "text": "Rehearse **A1** out loud until the result comes without looking.",
+              "go": { "sec": "ops", "id": "A1" } },
+            { "id": "k3", "text": "Skim the numbers — know the four that matter, not all of them.",
+              "go": { "sec": "numbers", "id": null } }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "stories", "nav": "Story Rotation", "title": "Story rotation tracker",
+      "lede": "Dashed outlines are the recommended panel. Tap to mark a story as used; a story used twice turns the row amber.",
+      "kind": "tracker"
+    },
+
+    {
+      "id": "ops", "nav": "Priya", "panel": "ops", "title": "Knowledge Programs & Measurement",
+      "lede": "She owns the escalation queue. Every answer should end with **a partner being better off**.",
+      "kind": "qa",
+      "items": [
+        {
+          "id": "A1", "tag": "STAR", "label": "Consolidated 40 runbooks, escalations down 38%",
+          "q": "Tell me about building buy-in for a knowledge program.",
+          "note": "Lead with this — it's the closest thing you have to **her** metric.",
+          "stories": ["S1"],
+          "star": {
+            "s": "Support had **~40 runbooks** across three tools, no owner, and no agreed source of truth. On-call was escalating cases that were already documented — nobody could find the answer.",
+            "t": "Consolidate them **without becoming the person every update routed through**.",
+            "a": "I audited every runbook against **six months of ticket data** to find which ones were actually load-bearing, retired the rest, and gave each survivor **a named owner and a review-by date**. Then I trained two Specialists to maintain their own.",
+            "r": "**Escalations dropped 38%** in the following quarter, and the library kept working after I moved to other projects — because the people who used it owned it."
+          },
+          "beats": [
+            { "l": "If asked about the retirement", "t": "I didn't delete anything unilaterally — I **published the audit** and gave owners two weeks to object. Three did, and they were right." }
+          ],
+          "punch": { "label": "The line", "text": "“**A library a team can't maintain isn't a program, it's a favor.**”" }
+        },
+        {
+          "id": "A2", "tag": "Framework", "label": "Health metrics, tiered",
+          "q": "How would you measure whether a knowledge base is healthy?",
+          "stories": [],
+          "beats": [
+            { "l": "Outcome tier", "t": "**First contact resolution** and **CSAT** — what leadership should judge the program on." },
+            { "l": "System tier", "t": "**Coverage against top ticket drivers**, **article age against review-by dates**, **time from launch to published**." },
+            { "l": "Diagnostic tier", "t": "Which articles get opened and **still escalate**. That gap is where the content is wrong rather than missing." }
+          ],
+          "punch": { "label": "The filter", "text": "“**If the number moved and nobody would do anything differently, I don't build it.**”" }
+        }
+      ]
+    },
+
+    {
+      "id": "design", "nav": "Dan", "panel": "design", "title": "Governance & Craft",
+      "lede": "A craft interviewer. Name the artifact, name the metric, name what changed.",
+      "kind": "qa",
+      "items": [
+        {
+          "id": "B1", "tag": "STAR", "label": "Constrained the template, review rounds 5 → 2",
+          "q": "Tell me about a governance framework you built.",
+          "stories": ["S2"],
+          "star": {
+            "s": "Release notes were drafted in a freeform doc. Every version took **about five review rounds**, mostly arguing about structure rather than substance.",
+            "t": "Raise consistency **without adding a reviewer nobody had time for**.",
+            "a": "I rebuilt the template and **limited which sections contributors could edit**, so structure was enforced by the artifact instead of by a person.",
+            "r": "Review rounds fell **from about five to two per version**, and the notes got more consistent across authors who had never coordinated."
+          },
+          "punch": { "label": "The thesis", "text": "“**Governance that depends on people remembering the style guide fails. Governance built into the template holds.**”" }
+        },
+        {
+          "id": "B2", "tag": "Guaranteed", "label": "30 / 60 / 90",
+          "q": "What would your first 90 days look like?",
+          "note": "Expect this. Rehearse it as three blocks with **a deliverable each**.",
+          "stories": [],
+          "beats": [
+            { "l": "First 30 days", "d": "Deliverable: a baseline and a ranked gap list.",
+              "items": [
+                "Baseline **FCR, article age, and coverage against top ticket drivers**.",
+                "Sit with Specialists to find **where they go when the KB fails them** — that shadow system shows what's missing.",
+                "**I don't want to have restructured anything in month one.**"
+              ]},
+            { "l": "Days 31–60", "d": "Deliverable: governance live.",
+              "items": [
+                "**An owner and a review-by date on every article** — a person, not a team.",
+                "A **launch-readiness gate**, plus a fast lane so the gate never becomes the reason people route around it."
+              ]},
+            { "l": "Days 61–90", "d": "Deliverable: the program is legible from outside.",
+              "items": [
+                "**One metric visibly moving**, and a monthly written update already in rhythm."
+              ]}
+          ],
+          "punch": { "label": "The close", "text": "“The real signal is **being pulled into launch planning early instead of finding out at release**.”" }
+        }
+      ]
+    },
+
+    {
+      "id": "people", "nav": "People", "title": "Who you're meeting",
+      "lede": "One card per interviewer, in the order you meet them.",
+      "kind": "people",
+      "cards": [
+        {
+          "panel": "ops", "when": "Interview 1 of 2",
+          "scoring": [
+            "Building **knowledge programs that scale**",
+            "**Measuring** content health",
+            "Partnering with **Support Specialists**"
+          ],
+          "lead": [
+            { "id": "A1", "sec": "ops", "label": "Consolidated 40 runbooks, escalations down 38%" },
+            { "id": "A2", "sec": "ops", "label": "Health metrics, tiered" }
+          ],
+          "watch": "**She's first, so she sets the frame.** Her read reaches Dan before he meets you.",
+          "questions": [
+            "When your Specialists can't find something, **where do they actually go**?",
+            "What's the most common escalation that **better knowledge would have prevented**?"
+          ]
+        },
+        {
+          "panel": "design", "when": "Interview 2 of 2",
+          "scoring": [
+            "**Governance frameworks** and style systems",
+            "Writing craft and **editorial judgment**"
+          ],
+          "lead": [
+            { "id": "B1", "sec": "design", "label": "Constrained the template, review rounds 5 → 2" },
+            { "id": "B2", "sec": "design", "label": "30 / 60 / 90" }
+          ],
+          "watch": "Craft interviewer — **be specific or don't say it**. Generic governance answers won't survive.",
+          "questions": [
+            "Is there an **existing style guide** this content should inherit, or is it greenfield?",
+            "What content health metrics does your team **already track**?"
+          ]
+        }
+      ],
+      "anyGroup": {
+        "title": "For either of them",
+        "items": [
+          "Is this a **new role or a backfill** — and if someone did it before, what did they get furthest on?",
+          "What does **success at six months** look like?"
+        ]
+      }
+    },
+
+    {
+      "id": "numbers", "nav": "Numbers", "title": "Numbers cheat sheet",
+      "lede": "Lead with the number when they're moving fast.",
+      "kind": "numbers",
+      "rows": [
+        { "v": "Escalations down 38%", "s": "Northwind — runbook consolidation + named owners", "w": "Priya's metric." },
+        { "v": "Review rounds 5 → 2 per version", "s": "Northwind — constrained release-notes template", "w": "Governance in the artifact." },
+        { "v": "Ramp 10 days → 4", "s": "Northwind — rebuilt onboarding guide", "w": "Time-to-value." },
+        { "v": "40 runbooks → 17", "s": "Northwind — audit against six months of ticket data", "w": "Evidence over request volume." }
+      ]
+    },
+
+    {
+      "id": "resume", "nav": "Resume", "title": "Resume",
+      "lede": "**Original is what they have.** Default to it when they say “your resume.”",
+      "kind": "resume",
+      "tabs": [
+        {
+          "id": "original", "label": "Original — as sent",
+          "note": "Submitted with the application. **This is the document they're reading from.**",
+          "blocks": [
+            { "t": "name", "text": "Alex Rivera" },
+            { "t": "title", "text": "Documentation Lead" },
+            { "t": "contact", "text": "Portland, OR · alex@example.com<br>example.com/alex" },
+            { "t": "head", "text": "Summary" },
+            { "t": "p", "text": "Documentation lead with 8 years building knowledge programs for support organizations at technical SaaS companies." },
+            { "t": "head", "text": "Experience" },
+            { "t": "role", "text": "Documentation Lead — Contoso Cloud" },
+            { "t": "meta", "text": "2021 – Present · Remote" },
+            { "t": "ul", "items": [
+              "Consolidated a 40-runbook library to 17 with named owners; **escalations down 38%**.",
+              "Rebuilt the release-notes template, cutting review rounds **from five to two per version**."
+            ]}
+          ]
+        },
+        {
+          "id": "updated", "label": "Updated — v2",
+          "note": "**Not sent.** Additive detail — safe to reference, but don't assume they've read it.",
+          "blocks": [
+            { "t": "name", "text": "Alex Rivera" },
+            { "t": "title", "text": "Documentation Lead / Knowledge Systems" },
+            { "t": "contact", "text": "Portland, OR · alex@example.com<br>example.com/alex" },
+            { "t": "head", "text": "Summary" },
+            { "t": "p", "text": "Documentation lead with 8 years building **knowledge programs for support organizations** — governance, ownership models, and the measurement to prove they worked." },
+            { "t": "head", "text": "Experience" },
+            { "t": "role", "text": "Documentation Lead — Contoso Cloud" },
+            { "t": "meta", "text": "2021 – Present · Remote" },
+            { "t": "ul", "items": [
+              "Audited 40 runbooks against **six months of ticket data**, retired what wasn't load-bearing, and gave each survivor **an owner and a review-by date** — **escalations down 38%**.",
+              "Trained two Specialists to maintain their own runbooks, so the library **outlasted my involvement**.",
+              "Rebuilt the release-notes template with **constrained editable sections**; review rounds **five → two per version**."
+            ]}
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% set nav = 'queue' %}
+{% block title %}{{ job.title }} · jobpilot{% endblock %}
+{% block content %}
+<p><a href="/" class="muted">← Back to queue</a></p>
+
+<div class="card" style="margin-top:12px;">
+  <div class="row" style="justify-content:space-between; align-items:flex-start;">
+    <div>
+      <h1 class="page-title" style="font-size:1.3rem;">{{ job.title }}</h1>
+      <p class="muted" style="margin-top:4px;">
+        {{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}
+        · <span class="pill">{{ job.status.value }}</span>
+      </p>
+    </div>
+    <div class="fit {{ 'hi' if (job.fit_score or 0) >= 70 else 'lo' }}" style="font-size:1.9rem;">
+      {{ job.fit_score if job.fit_score is not none else '—' }}
+    </div>
+  </div>
+  {% if job.fit_rationale %}
+    <p class="muted" style="margin-top:10px;">{{ job.fit_rationale }}</p>
+  {% endif %}
+  <div class="row" style="margin-top:14px;">
+    {% if job.apply_url %}
+      <a class="btn secondary" href="{{ job.apply_url }}" target="_blank" rel="noopener">Open posting ↗</a>
+    {% endif %}
+    <form class="inline" method="post" action="/job/{{ job.id }}/skip">
+      <button class="danger" type="submit">Skip</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between;">
+    <h3 style="margin:0;">Interview prep</h3>
+    <span class="pill {{ 'tone-ok' if job.prep_status == PrepStatus.complete
+      else ('tone-accent' if job.prep_status == PrepStatus.started else '') }}">
+      {{ {'none':'not started','started':'in progress','complete':'complete'}[job.prep_status.value] }}
+    </span>
+  </div>
+  <p class="muted" style="margin-top:8px;">
+    Generates a prep page for this role, pre-loaded with the posting, the fit score
+    and rationale, and the tailored resume. Everything else you fill in.
+  </p>
+  <div class="row" style="margin-top:12px;">
+    {% if prep_exists %}
+      <a class="btn" href="/job/{{ job.id }}/prep" target="_blank" rel="noopener">Open prep →</a>
+      <form class="inline" method="post" action="/job/{{ job.id }}/prep">
+        <input type="hidden" name="regenerate" value="1">
+        <button class="secondary" type="submit">Rebuild page</button>
+      </form>
+    {% else %}
+      <form class="inline" method="post" action="/job/{{ job.id }}/prep">
+        <button type="submit">Create prep page</button>
+      </form>
+    {% endif %}
+    <form class="inline" method="post" action="/job/{{ job.id }}/prep-status">
+      <input type="hidden" name="value"
+             value="{{ 'started' if job.prep_status == PrepStatus.complete else 'complete' }}">
+      <button class="secondary" type="submit">
+        {{ 'Mark prep not complete' if job.prep_status == PrepStatus.complete else 'Mark prep complete' }}
+      </button>
+    </form>
+  </div>
+  {% if job.prep_json_path %}
+    <p class="muted" style="margin-top:10px; font-size:0.82rem;">
+      Content: <code>{{ job.prep_json_path }}</code> — edit it, then Rebuild page.
+      “Rebuild” never overwrites your edits; it re-renders them.
+    </p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Posting</h3>
+  <pre class="posting">{{ job.description }}</pre>
+</div>
+
+{% if not app %}
+  <div class="card">
+    <p class="muted" style="margin-bottom:12px;">Not tailored yet.</p>
+    <form method="post" action="/job/{{ job.id }}/tailor">
+      <button type="submit">Generate tailored resume, cover letter &amp; answers</button>
+    </form>
+  </div>
+{% else %}
+  <form method="post" action="/job/{{ job.id }}/save">
+    <div class="card">
+      <h3>Tailored resume (Markdown)</h3>
+      <textarea name="resume_md">{{ app.tailored_resume_md }}</textarea>
+      {% if app.resume_pdf_path %}
+        <p class="muted" style="margin-top:8px; font-size:0.82rem;">PDF: <code>{{ app.resume_pdf_path }}</code></p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>Cover letter</h3>
+      <textarea name="cover_md">{{ app.cover_letter_md }}</textarea>
+      {% if app.cover_pdf_path %}
+        <p class="muted" style="margin-top:8px; font-size:0.82rem;">PDF: <code>{{ app.cover_pdf_path }}</code></p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>Screening answers (JSON)</h3>
+      <textarea name="screening_json">{{ screening_json }}</textarea>
+    </div>
+    <div class="row"><button type="submit">Save edits &amp; re-render PDFs</button></div>
+  </form>
+
+  <div class="card">
+    <h3>Apply</h3>
+    <p class="muted">Launch opens a browser on your machine with basic fields pre-filled
+      and your resume attached where detected. Review, answer the rest, and submit
+      yourself — <strong>jobpilot never clicks submit</strong>. Then mark it applied.</p>
+    <div class="row" style="margin-top:12px;">
+      <form class="inline" method="post" action="/job/{{ job.id }}/launch">
+        <button type="submit">Launch assisted apply</button>
+      </form>
+      <form class="inline" method="post" action="/job/{{ job.id }}/mark-applied">
+        <button class="secondary" type="submit">Mark applied (log to CSV)</button>
+      </form>
+    </div>
+    <p class="muted" style="margin-top:10px; font-size:0.82rem;">
+      Terminal alternative: <code>jobpilot apply {{ job.id }}</code></p>
+  </div>
+{% endif %}
+{% endblock %}
