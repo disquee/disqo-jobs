@@ -6,10 +6,16 @@ denylist would let any newly-created file leak by default, which is exactly the
 failure mode this guards against (the repo has held signed contracts, interview
 prep, and a real resume alongside the source).
 
-    python scripts/package.py            # build + scan, writes dist/
-    python scripts/package.py --check    # scan only, build nothing
+    python scripts/package.py             # build + scan, writes dist/
+    python scripts/package.py --check     # scan only, build nothing
+    python scripts/package.py --publish   # sync the public repo, commit, show diff
+    python scripts/package.py --publish --push   # ...and push it
 
 Exits non-zero if the staged tree contains anything matching a PII pattern.
+
+Two-repo workflow: this checkout is the private dev repo (personal profile,
+output, real config). The public repo receives only the allowlisted, scanned
+tree — content can reach it no other way, which is the point.
 """
 
 from __future__ import annotations
@@ -17,6 +23,7 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -132,6 +139,9 @@ def _local_patterns() -> list[tuple[str, str]]:
     return out
 
 
+# Matches that are anonymous by construction, so flagging them is noise.
+BENIGN = re.compile(r"noreply|example\.(?:com|org)|@users\.noreply\.", re.IGNORECASE)
+
 TEXT_SUFFIX = {
     ".py", ".md", ".txt", ".yaml", ".yml", ".json", ".html", ".css", ".js",
     ".toml", ".cfg", ".ini", ".csv", ".example", "",
@@ -191,15 +201,80 @@ def scan(files: list[Path], base: Path) -> list[str]:
             for rx, why in compiled:
                 m = rx.search(line)
                 if m:
+                    if BENIGN.search(m.group(0)):
+                        continue
                     rel = f.relative_to(base)
                     findings.append(f"{rel}:{line_no}  [{why}]  …{m.group(0)}…")
     return findings
+
+
+PUBLIC_REPO = "disquee/disqo-jobs"
+
+
+def _git(*args: str, cwd: Path) -> str:
+    out = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    if out.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)}: {out.stderr.strip()}")
+    return out.stdout.strip()
+
+
+def publish(staged_dir: Path, repo: str, message: str, do_push: bool) -> int:
+    """Mirror the staged tree into a clone of the public repo and commit it."""
+    work = ROOT / "dist" / ".publish"
+    work.mkdir(parents=True, exist_ok=True)
+    clone = work / repo.split("/")[-1]
+
+    if not (clone / ".git").exists():
+        print(f"Cloning {repo} …")
+        subprocess.run(["gh", "repo", "clone", repo, str(clone)], check=True,
+                       capture_output=True, text=True)
+    else:
+        _git("fetch", "origin", cwd=clone)
+        _git("reset", "--hard", "origin/HEAD", cwd=clone)
+
+    # Replace tracked content wholesale so deletions propagate too.
+    for item in clone.iterdir():
+        if item.name == ".git":
+            continue
+        shutil.rmtree(item) if item.is_dir() else item.unlink()
+    for item in staged_dir.iterdir():
+        dst = clone / item.name
+        shutil.copytree(item, dst) if item.is_dir() else shutil.copy2(item, dst)
+
+    _git("add", "-A", cwd=clone)
+    status = _git("status", "--porcelain", cwd=clone)
+    if not status:
+        print("\nPublic repo already matches this build — nothing to commit.")
+        return 0
+
+    print("\nChanges to publish:\n")
+    for line in status.splitlines():
+        print(f"    {line}")
+
+    email = _git("log", "-1", "--pretty=%ae", cwd=clone) or "noreply@github.com"
+    name = _git("log", "-1", "--pretty=%an", cwd=clone) or "jobpilot"
+    _git("-c", f"user.name={name}", "-c", f"user.email={email}",
+         "commit", "-q", "-m", message, cwd=clone)
+    print(f"\nCommitted to {clone.relative_to(ROOT)} as {name} <{email}>")
+
+    if not do_push:
+        print("Dry run — not pushed. Re-run with --push to publish.")
+        return 0
+    _git("push", "origin", "HEAD", cwd=clone)
+    print(f"Pushed to {repo}")
+    return 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="Scan only; don't write an archive.")
     ap.add_argument("--out", default="dist", help="Output directory (default: dist).")
+    ap.add_argument("--publish", action="store_true",
+                    help="Sync the public repo with this build and commit.")
+    ap.add_argument("--push", action="store_true",
+                    help="With --publish, actually push. Without it, dry run.")
+    ap.add_argument("--repo", default=PUBLIC_REPO, help=f"Public repo (default: {PUBLIC_REPO}).")
+    ap.add_argument("-m", "--message", default="", help="Commit message for --publish.")
     args = ap.parse_args()
 
     version = "0.1.0"
@@ -231,6 +306,10 @@ def main() -> int:
         if args.check:
             print("\n--check: archive not written.")
             return 0
+
+        if args.publish:
+            msg = args.message or f"Sync from dev repo (jobpilot {version})"
+            return publish(dest, args.repo, msg, args.push)
 
         out_dir = ROOT / args.out
         out_dir.mkdir(parents=True, exist_ok=True)
