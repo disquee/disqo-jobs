@@ -89,3 +89,19 @@ thing they protect.
 
 Recipients follow `SETUP_PROMPT.md`, which walks an AI agent through install, pointing
 it at their own LLM provider, and building their profile.
+
+### Two-repo workflow
+
+This checkout is the **private dev repo** — your real profile, `output/`, and personal
+`config.yaml` live here and are gitignored. A separate **public repo** holds only the
+allowlisted, scanned tree.
+
+```bash
+python scripts/package.py --publish          # sync + commit + show the diff (dry run)
+python scripts/package.py --publish --push   # ...and push
+```
+
+The public repo is a squashed mirror, not a shared history — which is deliberate.
+Content can only reach it by passing the allowlist and the PII scan, so no ordinary
+`git push` can leak a resume into it. Commits are authored with your GitHub
+`@users.noreply.github.com` address so no real email lands in public metadata.
