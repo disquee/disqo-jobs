@@ -17,7 +17,7 @@
 {% else %}
 <div class="tablecard"><div class="scroll">
   <table>
-    <thead><tr><th>Company</th><th>Role</th><th>Prep</th><th></th></tr></thead>
+    <thead><tr><th>Company</th><th>Role</th><th>Prep</th></tr></thead>
     <tbody>
     {% for job in jobs %}
       <tr>
@@ -25,12 +25,11 @@
         <td class="muted">{{ job.title }}</td>
         <td>
           {% if job.prep_status == PrepStatus.complete %}
-            <span class="pill tone-ok">✓ ready</span>
+            <a class="tag-plain is-done" href="/job/{{ job.id }}/prep">✓ Ready — open</a>
           {% else %}
-            <span class="pill tone-accent">in progress</span>
+            <a class="tag-plain is-marked" href="/job/{{ job.id }}/prep">In progress — open</a>
           {% endif %}
         </td>
-        <td><a href="/job/{{ job.id }}/prep">Open prep →</a></td>
       </tr>
     {% endfor %}
     </tbody>
