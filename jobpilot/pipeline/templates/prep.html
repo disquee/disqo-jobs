@@ -9,73 +9,66 @@
    Tokens
    ============================================================ */
 :root {
-  --accent-h: 285;
+  /* Brand palette: #46B1C9 teal · #84C0C6 aqua · #9FB7B9 sage
+     · #BCC1BA stone · #F2E2D2 cream. Every pairing below clears WCAG AA;
+     note the raw teal is only 2.5:1 against white, so it fills rather than
+     carries text, and a deepened teal does the talking. */
+  --brand-teal:  #46B1C9;
+  --brand-aqua:  #84C0C6;
+  --brand-sage:  #9FB7B9;
+  --brand-stone: #BCC1BA;
+  --brand-cream: #F2E2D2;
 
-  --bg:        oklch(0.985 0.004 var(--accent-h));
-  --surface:   oklch(1 0 0);
-  --surface-2: oklch(0.965 0.006 var(--accent-h));
-  --line:      oklch(0.90 0.008 var(--accent-h));
-  --line-soft: oklch(0.94 0.006 var(--accent-h));
-  --ink:       oklch(0.22 0.02 var(--accent-h));
-  --ink-2:     oklch(0.36 0.02 var(--accent-h));
-  --muted:     oklch(0.44 0.02 var(--accent-h));
-  --accent:    oklch(0.50 0.19 var(--accent-h));
-  --accent-ink:oklch(0.42 0.19 var(--accent-h));
-  --accent-bg: oklch(0.955 0.03 var(--accent-h));
-  --on-accent: oklch(0.99 0.005 var(--accent-h));
-
-  --ok:        oklch(0.48 0.13 155);
-  --ok-bg:     oklch(0.955 0.035 155);
-  --warn:      oklch(0.48 0.15 55);
-  --warn-bg:   oklch(0.96 0.045 65);
-
-  --p-sofia:   oklch(0.52 0.16 25);
-  --p-laura:   oklch(0.50 0.14 200);
-  --p-ai:      oklch(0.50 0.16 300);
-
-  --radius: 10px;
-  --radius-sm: 6px;
-
-  --z-base: 1;
-  --z-sticky: 100;
-  --z-drawer: 200;
-  --z-topbar: 300;
-
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur: 180ms;
-
+  --bg:        #F2E2D2;
+  --surface:   #FFFFFF;
+  --surface-2: #F8F1E8;
+  --line:      #D8CBBB;
+  --line-soft: #E8DDD0;
+  --ink:       #1B2A2F;
+  --ink-2:     #33474D;
+  --muted:     #556669;
+  --accent:    #1B6E82;
+  --accent-ink:#1B6E82;
+  --accent-bg: #DBEDF2;
+  --on-accent: #FFFFFF;
+  --ok:        #2C6E55;
+  --ok-bg:     #DCEBE4;
+  --warn:      #8A5A1C;
+  --warn-bg:   #F6E6D2;
+  --danger:    #9E3535;
+  --danger-bg: #F6DEDB;
+  --radius: 10px; --radius-sm: 6px;
+  --z-base: 1; --z-sticky: 100; --z-drawer: 200; --z-topbar: 300;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); --dur: 180ms;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --shadow-1: 0 1px 2px rgba(27, 42, 47, 0.07);
+  --shadow-2: 0 4px 16px rgba(27, 42, 47, 0.12);
 
-  --shadow-1: 0 1px 2px oklch(0.22 0.02 var(--accent-h) / 0.06);
-  --shadow-2: 0 4px 16px oklch(0.22 0.02 var(--accent-h) / 0.10);
 }
 
 :root[data-theme="dark"] {
-  --bg:        oklch(0.175 0.014 var(--accent-h));
-  --surface:   oklch(0.215 0.016 var(--accent-h));
-  --surface-2: oklch(0.255 0.018 var(--accent-h));
-  --line:      oklch(0.33 0.02 var(--accent-h));
-  --line-soft: oklch(0.28 0.018 var(--accent-h));
-  --ink:       oklch(0.95 0.005 var(--accent-h));
-  --ink-2:     oklch(0.84 0.01 var(--accent-h));
-  --muted:     oklch(0.72 0.018 var(--accent-h));
-  --accent:    oklch(0.74 0.16 var(--accent-h));
-  --accent-ink:oklch(0.80 0.14 var(--accent-h));
-  --accent-bg: oklch(0.30 0.06 var(--accent-h));
-  --on-accent: oklch(0.16 0.02 var(--accent-h));
+  --bg:        #11232A;
+  --surface:   #17303A;
+  --surface-2: #1E3C47;
+  --line:      #2E525E;
+  --line-soft: #26454F;
+  --ink:       #F2E2D2;
+  --ink-2:     #D7CDC1;
+  --muted:     #9FB7B9;
+  --accent:    #84C0C6;
+  --accent-ink:#84C0C6;
+  --accent-bg: #1E4A56;
+  --on-accent: #0E1F25;
+  --ok:        #7FC3A4;
+  --ok-bg:     #1C3D33;
+  --warn:      #E0B274;
+  --warn-bg:   #3D2F1C;
+  --danger:    #E39A96;
+  --danger-bg: #3D2422;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 4px 18px rgba(0, 0, 0, 0.45);
 
-  --ok:        oklch(0.78 0.14 155);
-  --ok-bg:     oklch(0.29 0.05 155);
-  --warn:      oklch(0.82 0.14 70);
-  --warn-bg:   oklch(0.31 0.05 65);
-
-  --p-sofia:   oklch(0.76 0.14 30);
-  --p-laura:   oklch(0.76 0.12 205);
-  --p-ai:      oklch(0.76 0.14 300);
-
-  --shadow-1: 0 1px 2px oklch(0 0 0 / 0.30);
-  --shadow-2: 0 4px 18px oklch(0 0 0 / 0.42);
 }
 
 * { box-sizing: border-box; }
@@ -372,7 +365,7 @@ body.is-searching .section:not(.has-hits) { display: none; }
 .qcheck:hover { border-color: var(--ok); }
 .qcheck svg { width: 12px; height: 12px; }
 .qcheck[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: var(--on-accent); }
-:root[data-theme="dark"] .qcheck[aria-pressed="true"] { color: oklch(0.18 0.02 155); }
+:root[data-theme="dark"] .qcheck[aria-pressed="true"] { color: var(--on-accent); }
 
 .qbody {
   padding: 14px; display: grid; gap: 12px;
@@ -733,6 +726,12 @@ body.present .qnotes { display: none; }
 /* ============================================================
    Motion / print
    ============================================================ */
+
+/* Same brand rule as the dashboard: teal fills, deep teal speaks. */
+.qcard[open] { border-color:var(--brand-teal); }
+.navlink[aria-current="true"] { box-shadow:inset 0 -2px 0 var(--brand-teal); }
+.chk-bar span, .progress > span { background:var(--brand-teal); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
 }
