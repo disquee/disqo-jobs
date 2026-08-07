@@ -22,11 +22,11 @@
       <p class="muted" style="font-size:0.85rem;">
         {{ worth_review_total }} job{{ '' if worth_review_total == 1 else 's' }} scored
         {{ threshold }} or higher and not started yet.</p>
-      <ul class="nextlist">
+      <ul class="nextlist nextlist--scored">
         {% for job in worth_review %}
           <li>
-            <a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a>
-            <span class="muted">{{ job.company }}</span>
+            <a class="jobtitle" href="/job/{{ job.id }}" title="{{ job.title }}">{{ job.title }}</a>
+            <span class="company" title="{{ job.company }}">{{ job.company }}</span>
             <span class="fit {{ 'hi' if (job.fit_score or 0) >= threshold else 'lo' }}">{{ job.fit_score }}</span>
           </li>
         {% endfor %}
@@ -50,11 +50,11 @@
       <p class="muted" style="font-size:0.85rem;">
         {{ ready_total }} {{ 'application has' if ready_total == 1 else 'applications have' }}
         a resume and cover letter written and waiting.</p>
-      <ul class="nextlist">
+      <ul class="nextlist nextlist--plain">
         {% for job in ready %}
           <li>
-            <a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a>
-            <span class="muted">{{ job.company }}</span>
+            <a class="jobtitle" href="/job/{{ job.id }}" title="{{ job.title }}">{{ job.title }}</a>
+            <span class="company" title="{{ job.company }}">{{ job.company }}</span>
           </li>
         {% endfor %}
       </ul>
@@ -97,10 +97,12 @@
     {% endif %}
     {% if needs_prep %}
       <p class="muted" style="font-size:0.85rem; margin-top:10px;">Prep not finished for:</p>
-      <ul class="nextlist">
+      <ul class="nextlist nextlist--plain">
         {% for job in needs_prep %}
-          <li><a class="jobtitle" href="/job/{{ job.id }}">{{ job.company }}</a>
-            <span class="muted">{{ job.title }}</span></li>
+          <li>
+            <a class="jobtitle" href="/job/{{ job.id }}" title="{{ job.company }}">{{ job.company }}</a>
+            <span class="company" title="{{ job.title }}">{{ job.title }}</span>
+          </li>
         {% endfor %}
       </ul>
       <a class="btn secondary tiny" href="/prep">Interview prep</a>
