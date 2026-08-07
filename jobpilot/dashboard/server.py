@@ -8,8 +8,9 @@ submit in that browser, click "Mark applied" to log the row to CSV.
 from __future__ import annotations
 
 import json
+import re
 import threading
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import yaml
@@ -84,6 +85,65 @@ from ..store import (
 
 app = FastAPI(title="jobpilot")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+
+def _parse_date(value: str):
+    """Sources send several shapes: bare dates, trailing Z, 7-digit fractions."""
+    if not value:
+        return None
+    text = str(value).strip().replace("Z", "+00:00")
+    text = re.sub(r"(\.\d{6})\d+", r"\1", text)  # trim over-long fractions
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        try:
+            return datetime.fromisoformat(text[:10])
+        except ValueError:
+            return None
+
+
+def job_date(job) -> dict:
+    """When the job was posted, or failing that when we found it.
+
+    Age matters in a job search — a two-month-old posting is often already
+    filled — so recent dates read as relative and older ones as absolute.
+    """
+    raw, posted = job.posted_at, True
+    if not raw:
+        raw, posted = job.discovered_at, False
+    dt = _parse_date(raw)
+    if dt is None:
+        return {"label": "—", "sort": "", "title": "", "stale": False}
+
+    today = date.today()
+    days = (today - dt.date()).days
+    if days < 0:
+        label = dt.strftime("%b %d").replace(" 0", " ")
+    elif days == 0:
+        label = "Today"
+    elif days == 1:
+        label = "Yesterday"
+    elif days < 7:
+        label = f"{days}d ago"
+    elif days < 30:
+        label = f"{days // 7}w ago"
+    elif dt.year == today.year:
+        label = dt.strftime("%b %d").replace(" 0", " ")
+    else:
+        label = dt.strftime("%b %Y")
+
+    kind = "Posted" if posted else "Found by disqo jobs"
+    return {
+        "label": label,
+        "sort": dt.date().isoformat(),
+        "title": f"{kind} {dt.date().isoformat()}"
+                 + (f" · {days} days ago" if days > 0 else ""),
+        "stale": days > 45,
+        "posted": posted,
+    }
+
+
+templates.env.globals["job_date"] = job_date
 
 
 @app.on_event("startup")

@@ -20,6 +20,10 @@
 </div>
 
 <p class="hitcount" id="hitcount"></p>
+<p class="muted" style="font-size:0.8rem; margin:-6px 0 12px;">
+  Dates are when the job was posted. An asterisk means the posting didn't say,
+  so it's when disqo jobs found it. Faded dates are over 45 days old.
+</p>
 
 {% if not jobs %}
   <div class="tablecard"><div class="empty">
@@ -37,6 +41,7 @@
     <thead>
       <tr>
         <th data-sort="num">Fit</th>
+        <th data-sort="date">Posted</th>
         <th data-sort="text">Title</th>
         <th data-sort="text">Company</th>
         <th data-sort="text">Location</th>
@@ -52,6 +57,9 @@
             data-key="{{ job.fit_score if job.fit_score is not none else '' }}">
           {{ job.fit_score if job.fit_score is not none else '—' }}
         </td>
+        {% set d = job_date(job) %}
+        <td class="jobdate {{ 'is-stale' if d.stale }}" data-key="{{ d.sort }}"
+            title="{{ d.title }}">{{ d.label }}{% if not d.posted and d.label != '—' %}*{% endif %}</td>
         <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a></td>
         <td>{{ job.company }}</td>
         <td class="muted">{{ job.location or '—' }}</td>

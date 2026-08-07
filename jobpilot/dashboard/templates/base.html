@@ -123,6 +123,9 @@ th[data-sort]::after { content:"↕"; margin-left:5px; opacity:0.3; font-size:0.
 th[data-sort][aria-sort="ascending"]::after { content:"↑"; opacity:1; color:var(--accent-ink); }
 th[data-sort][aria-sort="descending"]::after { content:"↓"; opacity:1; color:var(--accent-ink); }
 th[data-sort]:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.jobdate { white-space:nowrap; font-variant-numeric:tabular-nums; font-size:0.84rem;
+  color:var(--ink-2); }
+.jobdate.is-stale { color:var(--muted); opacity:0.72; }
 .jobtitle { font-weight:600; color:var(--ink); }
 .jobtitle:hover { color:var(--accent-ink); }
 
