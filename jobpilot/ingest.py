@@ -259,17 +259,21 @@ def parse_interviewers(text: str) -> list[dict]:
             continue
 
         lead = _LEAD.match(line)
+        people = []
         if lead:
             people = _people_from_segment(lead.group("rest"), lead.group("focus"))
-        else:
-            people = _people_from_segment(line, "")
-            if not people:
-                people = [{"name": " ".join(m.group("name").split()),
-                           "role": m.group("role").strip()[:120], "focus": "",
-                           "linkedin": "", "when": ""}
-                          for m in _PAREN.finditer(line)
-                          if not any(w.lower() in _NOT_A_NAME
-                                     for w in m.group("name").split())]
+        if not people:
+            # A lead-in that yielded nothing still leaves the rest of the line
+            # worth trying, e.g. "Interview with Sam Ortiz (Director of Support)".
+            focus = lead.group("focus") if lead else ""
+            people = _people_from_segment(line, focus)
+        if not people:
+            people = [{"name": " ".join(m.group("name").split()),
+                       "role": m.group("role").strip()[:120], "focus": "",
+                       "linkedin": "", "when": ""}
+                      for m in _PAREN.finditer(line)
+                      if not any(w.lower() in _NOT_A_NAME
+                                 for w in m.group("name").split())]
 
         for person in people:
             key = person["name"].lower()
