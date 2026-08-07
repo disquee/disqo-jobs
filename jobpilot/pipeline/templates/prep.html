@@ -867,7 +867,12 @@ SECTIONS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
 /* ============================================================
    Storage (degrades gracefully on file://)
    ============================================================ */
-const KEY = "figma-r2-prep-v1";
+// Scoped per prep page: a shared key meant two loops overwrote each other's
+// notes. LEGACY is the old single key, claimed once by whichever page loads
+// first so existing notes aren't stranded.
+const KEY = "prep:" + (DATA.meta.file || "default");
+const LEGACY = "figma-r2-prep-v1";
+const LEGACY_CLAIMED = "prep:legacy-claimed";
 const mem = {};
 let store;
 try {
@@ -877,7 +882,16 @@ try {
 } catch (e) {
   store = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
 }
-const load = () => { try { return JSON.parse(store.getItem(KEY) || "{}"); } catch (e) { return {}; } };
+const load = () => {
+  try {
+    let raw = store.getItem(KEY);
+    if (!raw && !store.getItem(LEGACY_CLAIMED)) {
+      const legacy = store.getItem(LEGACY);
+      if (legacy) { store.setItem(KEY, legacy); store.setItem(LEGACY_CLAIMED, "1"); raw = legacy; }
+    }
+    return JSON.parse(raw || "{}");
+  } catch (e) { return {}; }
+};
 
 // When this page is served by disqo jobs (rather than opened from disk) mirror
 // state to the server, so notes are in the database and the backups instead of

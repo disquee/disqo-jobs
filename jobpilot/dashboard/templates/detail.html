@@ -60,8 +60,10 @@
   </div>
   {% if job.prep_json_path %}
     <p class="muted" style="margin-top:10px; font-size:0.82rem;">
-      Content: <code>{{ job.prep_json_path }}</code> — edit it, then Rebuild page.
-      “Rebuild” never overwrites your edits; it re-renders them.
+      Content: <code>{{ job.prep_json_path }}</code> — edit that file directly for
+      anything the walkthrough doesn't cover. Changing who you're meeting rebuilds
+      the page from scratch; the previous version is saved next to it as a
+      <code>.backup-…json</code> file.
     </p>
   {% endif %}
 </div>

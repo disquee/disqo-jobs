@@ -478,8 +478,18 @@ def scaffold_from_job(job, application=None, plan=None) -> dict:
 
 
 def ensure_job_prep(job, application=None, regenerate: bool = False) -> dict[str, Path]:
-    """Create the prep JSON for ``job`` if absent, then render the page."""
+    """Create the prep JSON for ``job`` if absent, then render the page.
+
+    Regenerating replaces hand-written content, so the previous version is kept
+    alongside it rather than thrown away.
+    """
     json_path = prep_json_path(job)
+    if regenerate and json_path.exists():
+        from datetime import datetime
+
+        backup = json_path.with_name(
+            f"{json_path.stem}.backup-{datetime.now():%Y%m%d-%H%M%S}.json")
+        backup.write_text(json_path.read_text(encoding="utf-8"), encoding="utf-8")
     if regenerate or not json_path.exists():
         json_path.parent.mkdir(parents=True, exist_ok=True)
         json_path.write_text(

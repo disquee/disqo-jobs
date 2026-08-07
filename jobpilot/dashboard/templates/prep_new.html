@@ -101,6 +101,10 @@
 
     <div class="row" style="margin-bottom:40px;">
       <button type="submit">{{ 'Rebuild prep page' if existing else 'Build my prep page' }}</button>
+      {% if existing %}
+        <span class="muted" style="font-size:0.82rem;">Rebuilds the page from these
+          details. Your current version is kept as a backup file.</span>
+      {% endif %}
       <a class="btn secondary" href="/job/{{ job.id }}">Cancel</a>
     </div>
   </form>
