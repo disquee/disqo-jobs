@@ -388,6 +388,24 @@ thead th { position:sticky; top:49px; z-index:10; }
   thead th { position:static; }
 }
 
+
+/* Footer: a plain link, not GitHub's embed — the app makes no outside requests. */
+.sitefoot { border-top:1px solid var(--line); margin-top:48px; background:var(--surface); }
+.sitefoot-inner { max-width:1180px; margin:0 auto; padding:18px 20px;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.madeby { font-size:0.82rem; color:var(--muted); letter-spacing:0.02em; }
+.madeby a { color:var(--ink); font-weight:600; text-decoration:none;
+  box-shadow:inset 0 -2px 0 var(--brand-amber); }
+.madeby a:hover { background:var(--accent-bg); text-decoration:none; }
+.ghstar { margin-left:auto; display:inline-flex; align-items:center; gap:7px;
+  padding:6px 12px; font-size:0.8rem; font-weight:500; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm); text-decoration:none;
+  transition:background var(--dur) var(--ease); }
+.ghstar:hover { background:var(--surface-2); text-decoration:none; }
+.ghstar svg { color:var(--brand-amber); }
+@media (max-width: 520px) { .ghstar { margin-left:0; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration:1ms !important; }
 }
@@ -396,7 +414,7 @@ thead th { position:sticky; top:49px; z-index:10; }
 @media print {
   :root { --bg:#fff; --surface:#fff; --surface-2:#fff; --ink:#000; --ink-2:#222;
           --muted:#444; --line:#999; --line-soft:#ccc; }
-  .topbar, .no-print, form.inline, .page-sub { display:none !important; }
+  .topbar, .sitefoot, .no-print, form.inline, .page-sub { display:none !important; }
   .print-only { display:inline !important; }
   body { font-size:10pt; background:#fff; }
   .wrap { max-width:none; padding:0; }
@@ -430,6 +448,21 @@ thead th { position:sticky; top:49px; z-index:10; }
   </div>
 </header>
 <div class="wrap">{% block content %}{% endblock %}</div>
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <span class="madeby">Made by
+      <a href="https://disquedoesit.com" target="_blank" rel="noopener">disqo</a>
+    </span>
+    <a class="ghstar" href="https://github.com/disquee/disqo-jobs"
+       target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true" width="14" height="14" fill="currentColor">
+        <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"/>
+      </svg>
+      Star on GitHub
+    </a>
+  </div>
+</footer>
+
 <script>
 // Theme: same contract as the prep page — follow the system, remember an override.
 (function () {
