@@ -18,6 +18,7 @@ from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import (
     FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response,
 )
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..config import BACKUP_DIR, CSV_PATH, DATA_DIR, DB_PATH, PROFILE_DIR, ROOT, load_config
@@ -86,6 +87,7 @@ from ..store import (
 
 app = FastAPI(title="jobpilot")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 
 def _parse_date(value: str):
@@ -569,7 +571,7 @@ COMPANY_SUGGESTIONS = [
 async def _first_run_gate(request: Request, call_next):
     """Send first-time users to the wizard instead of an empty dashboard."""
     path = request.url.path
-    if not path.startswith(("/setup", "/log/export")) and needs_setup():
+    if not path.startswith(("/setup", "/static", "/log/export")) and needs_setup():
         return RedirectResponse("/setup", status_code=303)
     return await call_next(request)
 

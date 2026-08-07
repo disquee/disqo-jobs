@@ -5,71 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
 <style>
+/* Bundled, not fetched: the app promises nothing leaves your machine. */
+@font-face { font-family:"Archivo Black"; src:url("/static/fonts/ArchivoBlack-400.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"Inter Tight"; src:url("/static/fonts/InterTight-400.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"Inter Tight"; src:url("/static/fonts/InterTight-500.woff2") format("woff2");
+  font-weight:500; font-style:normal; font-display:swap; }
+@font-face { font-family:"Inter Tight"; src:url("/static/fonts/InterTight-600.woff2") format("woff2");
+  font-weight:600; font-style:normal; font-display:swap; }
+@font-face { font-family:"JetBrains Mono"; src:url("/static/fonts/JetBrainsMono-400.woff2") format("woff2");
+  font-weight:400 500; font-style:normal; font-display:swap; }
+
 /* ============================================================
    Tokens
    ============================================================ */
 :root {
-  /* Brand palette: #46B1C9 teal · #84C0C6 aqua · #9FB7B9 sage
-     · #BCC1BA stone · #F2E2D2 cream. The page sits on the cool stone end so
-     it's comfortable for hours; cream is reserved for warnings and notes, where
-     its warmth means something. Every pairing below clears WCAG AA;
-     note the raw teal is only 2.5:1 against white, so it fills rather than
-     carries text, and a deepened teal does the talking. */
-  --brand-teal:  #46B1C9;
-  --brand-aqua:  #84C0C6;
-  --brand-sage:  #9FB7B9;
-  --brand-stone: #BCC1BA;
-  --brand-cream: #F2E2D2;
-
-  --bg:        #F4F6F5;
+  /* Matched to disquedoesit.com: near-white page, white cards, black borders,
+     sharp corners, and one amber marker. The amber is 2.05:1 on white, so it
+     never carries text — it fills, with near-black on top. */
+  --brand-amber: #F9A300;
+  --bg:        #FAFAF9;
   --surface:   #FFFFFF;
-  --surface-2: #EBF0EE;
-  --line:      #D5DCDA;
-  --line-soft: #E4EAE8;
-  --ink:       #17262B;
-  --ink-2:     #33474D;
-  --muted:     #556669;
-  --accent:    #1B6E82;
-  --accent-ink:#1B6E82;
-  --accent-bg: #DBEDF2;
-  --on-accent: #FFFFFF;
-  --ok:        #2C6E55;
-  --ok-bg:     #DEECE5;
-  --warn:      #7E4E14;
-  --warn-bg:   #F2E2D2;   /* the brand cream, kept as the warm alert tone */
-  --danger:    #9E3535;
-  --danger-bg: #F7DEDB;
-  --radius: 10px; --radius-sm: 6px;
-  --z-base: 1; --z-sticky: 100; --z-drawer: 200; --z-topbar: 300;
+  --surface-2: #ECEBE7;
+  --line:      #0B0B0B;
+  --line-soft: #DEDCD6;
+  --ink:       #0B0B0B;
+  --ink-2:     #2A2A29;
+  --muted:     #484848;
+  --accent:    #8A5A00;
+  --accent-ink:#8A5A00;
+  --accent-bg: #FDECC8;
+  --on-accent: #0B0B0B;
+  --btn-bg:    #0B0B0B;
+  --btn-ink:   #FAFAF9;
+  --ok:        #1F6B45;
+  --ok-bg:     #DFF0E6;
+  --warn:      #8A5A00;
+  --warn-bg:   #FDECC8;
+  --danger:    #9B2C2C;
+  --danger-bg: #FADBD8;
+  --radius: 4px; --radius-sm: 3px;
+  --sans: "Inter Tight", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Archivo Black", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.22, 1, 0.36, 1); --dur: 180ms;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --shadow-1: 0 1px 2px rgba(27, 42, 47, 0.07);
-  --shadow-2: 0 4px 16px rgba(27, 42, 47, 0.12);
+  --shadow-1: 0 1px 0 rgba(11, 11, 11, 0.06);
+  --z-base: 1; --z-sticky: 100; --z-drawer: 200; --z-topbar: 300;
+  --shadow-2: 0 3px 0 rgba(11, 11, 11, 0.08);
 
 }
 
 :root[data-theme="dark"] {
-  --bg:        #11232A;
-  --surface:   #17303A;
-  --surface-2: #1E3C47;
-  --line:      #2E525E;
-  --line-soft: #26454F;
-  --ink:       #F2E2D2;
-  --ink-2:     #D7CDC1;
-  --muted:     #9FB7B9;
-  --accent:    #84C0C6;
-  --accent-ink:#84C0C6;
-  --accent-bg: #1E4A56;
-  --on-accent: #0E1F25;
-  --ok:        #7FC3A4;
-  --ok-bg:     #1C3D33;
-  --warn:      #E0B274;
-  --warn-bg:   #3D2F1C;
-  --danger:    #E39A96;
-  --danger-bg: #3D2422;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-2: 0 4px 18px rgba(0, 0, 0, 0.45);
+  --brand-amber: #F9A300;
+  --bg:        #0E0E0D;
+  --surface:   #171716;
+  --surface-2: #201F1D;
+  --line:      #3A3936;
+  --line-soft: #2A2926;
+  --ink:       #F5F4F1;
+  --ink-2:     #D6D4CE;
+  --muted:     #A8A6A0;
+  --accent:    #F9A300;
+  --accent-ink:#F9A300;
+  --accent-bg: #3A2A08;
+  --on-accent: #0B0B0B;
+  --btn-bg:    #F5F4F1;
+  --btn-ink:   #0E0E0D;
+  --ok:        #7BC49B;
+  --ok-bg:     #14301F;
+  --warn:      #F0B860;
+  --warn-bg:   #33260A;
+  --danger:    #E89A96;
+  --danger-bg: #341A19;
 
 }
 
@@ -733,6 +741,18 @@ body.present .qnotes { display: none; }
 .qcard[open] { border-color:var(--brand-teal); }
 .navlink[aria-current="true"] { box-shadow:inset 0 -2px 0 var(--brand-teal); }
 .chk-bar span, .progress > span { background:var(--brand-teal); }
+
+
+/* Same signature on the prep pages. */
+h1, h2, .section-title, .brand-name, .r-name {
+  font-family:var(--display); font-weight:400; letter-spacing:-0.02em; }
+.qlabel { font-family:var(--display); font-weight:400; letter-spacing:-0.015em; }
+.qcard, .tracker, .resume, .pcard { border:1px solid var(--line); }
+.qcard[open] { border-color:var(--line); box-shadow:inset 3px 0 0 var(--brand-amber); }
+.navlink[aria-current="true"] { box-shadow:inset 0 -3px 0 var(--brand-amber); background:none; }
+.chk-bar span { background:var(--brand-amber); }
+.tag.t-star { background:var(--brand-amber); color:#0B0B0B; }
+:focus-visible { outline:2px solid var(--brand-amber); outline-offset:2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
