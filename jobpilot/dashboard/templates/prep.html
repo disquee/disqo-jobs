@@ -45,9 +45,7 @@
     seconds to create and starts with the posting already in it.</p>
   <div class="row" style="margin-top:12px; gap:8px;">
     {% for job in candidates %}
-      <form class="inline" method="post" action="/job/{{ job.id }}/prep">
-        <button class="secondary tiny" type="submit">{{ job.company }} — {{ job.title[:38] }}</button>
-      </form>
+      <a class="btn secondary tiny" href="/job/{{ job.id }}/prep/new">{{ job.company }} — {{ job.title[:38] }}</a>
     {% endfor %}
   </div>
 </div>

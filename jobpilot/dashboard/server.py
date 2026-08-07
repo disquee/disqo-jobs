@@ -31,7 +31,9 @@ from ..backup import (
 from ..log_csv import append_application
 from ..models import (
     ActivityResult,
+    Interviewer,
     Job,
+    PrepPlan,
     display_status,
     ActivityType,
     Application,
@@ -41,7 +43,9 @@ from ..models import (
     WorkSearchActivity,
 )
 from ..worklog import to_csv, to_xlsx, weekly_counts
-from ..ingest import fetch_posting, resume_text
+from ..ingest import (
+    fetch_posting, parse_competencies, parse_interviewers, resume_text, spreadsheet_rows,
+)
 from ..settings import (
     check_api_key,
     has_api_key,
@@ -58,7 +62,9 @@ from ..pipeline.process import score_pending, tailor_above_threshold
 from ..usage import estimate_per_job, set_rates, summary as usage_summary
 from ..worklog import week_start
 from . import tasks
-from ..pipeline.prep import ensure_job_prep, prep_html_path, prep_json_path
+from ..pipeline.prep import (
+    ensure_job_prep, load_plan, prep_html_path, prep_json_path, save_plan,
+)
 from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, render_pdf, resume_path
 from ..store import (
@@ -185,12 +191,132 @@ def job_detail(request: Request, job_id: str):
     )
 
 
+@app.get("/job/{job_id}/prep/new", response_class=HTMLResponse)
+def prep_new(request: Request, job_id: str, err: str = "", parsed: str = ""):
+    """Walk through who you're meeting before building the page."""
+    job = get_job(job_id)
+    if not job:
+        return RedirectResponse("/", status_code=303)
+    plan = load_plan(job)
+    if parsed:
+        try:
+            payload = json.loads(parsed)
+            plan.interviewers = [Interviewer(**p) for p in payload.get("interviewers", [])]
+            plan.competencies = payload.get("competencies", [])
+            plan.source_text = payload.get("source_text", "")
+        except Exception:
+            pass
+    return templates.TemplateResponse(
+        request, "prep_new.html",
+        {"job": job, "plan": plan, "err": err,
+         "existing": prep_html_path(job).exists(), "settings": load_settings()},
+    )
+
+
+@app.post("/job/{job_id}/prep/parse")
+async def prep_parse(
+    job_id: str, pasted: str = Form(""), file: UploadFile = File(None),
+):
+    """Pull the loop out of a pasted recruiter email, a document, or a sheet."""
+    job = get_job(job_id)
+    if not job:
+        return RedirectResponse("/", status_code=303)
+
+    text, people = pasted or "", []
+    if file is not None and file.filename:
+        data = await file.read()
+        name = file.filename.lower()
+        try:
+            if name.endswith((".csv", ".tsv", ".xlsx")):
+                rows = spreadsheet_rows(file.filename, data)
+                header = [c.lower() for c in rows[0]] if rows else []
+                has_header = any(h in ("name", "interviewer") for h in header)
+                for row in rows[1:] if has_header else rows:
+                    if not row or not row[0].strip():
+                        continue
+                    people.append({
+                        "name": row[0].strip(),
+                        "role": row[1].strip() if len(row) > 1 else "",
+                        "focus": row[2].strip() if len(row) > 2 else "",
+                        "linkedin": next((c for c in row if "linkedin.com" in c.lower()), ""),
+                        "when": "",
+                    })
+            else:
+                text = resume_text(file.filename, data)  # same extractors
+        except RuntimeError as e:
+            from urllib.parse import quote
+
+            return RedirectResponse(f"/job/{job_id}/prep/new?err={quote(str(e))}", status_code=303)
+
+    if not people:
+        people = parse_interviewers(text)
+    if not people and not text.strip():
+        return RedirectResponse(
+            f"/job/{job_id}/prep/new?err=Paste the email or upload a file first.",
+            status_code=303,
+        )
+    for i, person in enumerate(people, start=1):
+        if not person.get("when"):
+            person["when"] = f"Interview {i} of {len(people)}" if len(people) > 1 else "Interview"
+
+    from urllib.parse import quote
+
+    payload = json.dumps({"interviewers": people,
+                          "competencies": parse_competencies(text),
+                          "source_text": text[:8000]})
+    return RedirectResponse(
+        f"/job/{job_id}/prep/new?parsed={quote(payload)}", status_code=303)
+
+
+@app.post("/job/{job_id}/prep/plan")
+def prep_save_plan(
+    job_id: str,
+    name: list[str] = Form([]), role: list[str] = Form([]),
+    focus: list[str] = Form([]), linkedin: list[str] = Form([]),
+    when: list[str] = Form([]),
+    format_: str = Form("", alias="format"), scheduled: str = Form(""),
+    duration: str = Form(""), recruiter: str = Form(""),
+    competencies: str = Form(""), source_text: str = Form(""),
+):
+    job = get_job(job_id)
+    if not job:
+        return RedirectResponse("/", status_code=303)
+
+    people = []
+    for i, n in enumerate(name):
+        if not n.strip():
+            continue
+        people.append(Interviewer(
+            name=n.strip(),
+            role=role[i].strip() if i < len(role) else "",
+            focus=focus[i].strip() if i < len(focus) else "",
+            linkedin=linkedin[i].strip() if i < len(linkedin) else "",
+            when=when[i].strip() if i < len(when) else "",
+        ))
+    plan = PrepPlan(
+        job_id=job.id, interviewers=people, format=format_.strip(),
+        scheduled=scheduled.strip(), duration=duration.strip(),
+        recruiter=recruiter.strip(), source_text=source_text[:8000],
+        competencies=[c.strip() for c in competencies.splitlines() if c.strip()],
+    )
+    save_plan(job, plan)
+    written = ensure_job_prep(job, get_application(job_id), regenerate=True)
+    job.prep_json_path = str(written["html"].with_suffix(".json"))
+    job.prep_html_path = str(written["html"])
+    if job.prep_status == PrepStatus.none:
+        job.prep_status = PrepStatus.started
+    save_job(job)
+    return RedirectResponse(f"/job/{job_id}/prep", status_code=303)
+
+
 @app.post("/job/{job_id}/prep")
 def do_prep(job_id: str, regenerate: str = Form("")):
     """Create (or rebuild) the interview-prep page for this job, then open it."""
     job = get_job(job_id)
     if not job:
         return RedirectResponse("/", status_code=303)
+    if not regenerate and not prep_html_path(job).exists():
+        return RedirectResponse(f"/job/{job_id}/prep/new", status_code=303)
     written = ensure_job_prep(job, get_application(job_id), regenerate=bool(regenerate))
     job.prep_json_path = str(written["html"].with_suffix(".json"))
     job.prep_html_path = str(written["html"])

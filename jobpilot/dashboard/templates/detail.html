@@ -46,14 +46,9 @@
   <div class="row" style="margin-top:12px;">
     {% if prep_exists %}
       <a class="btn" href="/job/{{ job.id }}/prep" target="_blank" rel="noopener">Open prep →</a>
-      <form class="inline" method="post" action="/job/{{ job.id }}/prep">
-        <input type="hidden" name="regenerate" value="1">
-        <button class="secondary" type="submit">Rebuild page</button>
-      </form>
+      <a class="btn secondary" href="/job/{{ job.id }}/prep/new">Edit who I'm meeting</a>
     {% else %}
-      <form class="inline" method="post" action="/job/{{ job.id }}/prep">
-        <button type="submit">Create prep page</button>
-      </form>
+      <a class="btn" href="/job/{{ job.id }}/prep/new">Set up prep</a>
     {% endif %}
     <form class="inline" method="post" action="/job/{{ job.id }}/prep-status">
       <input type="hidden" name="value"

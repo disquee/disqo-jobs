@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% set nav = 'prep' %}
+{% block title %}Set up prep · {{ job.company }}{% endblock %}
+{% block content %}
+<p><a href="/job/{{ job.id }}" class="muted">← Back to {{ job.title }}</a></p>
+
+<div class="wizard">
+  <div class="page-head" style="margin-top:12px;">
+    <h1 class="page-title">Prep for {{ job.company }}</h1>
+    <span class="page-sub">{{ job.title }}</span>
+  </div>
+
+  {% if err %}<div class="note tone-warn">{{ err }}</div>{% endif %}
+
+  <div class="card">
+    <h3>Start from the recruiter's email</h3>
+    <p class="muted" style="font-size:0.87rem;">
+      Recruiters usually send who you're meeting, their titles, and what each
+      conversation covers. Paste that email and we'll pull the loop out of it —
+      you check it on the next step.
+    </p>
+    <form method="post" action="/job/{{ job.id }}/prep/parse" enctype="multipart/form-data"
+          style="margin-top:14px;">
+      <textarea name="pasted" style="min-height:170px;"
+        placeholder="Paste the whole email — including the list of interviewers and anything about what they're looking for.">{{ plan.source_text }}</textarea>
+      <p class="divider"><span>or upload</span></p>
+      <label class="field wide">
+        <span>A document or spreadsheet (.docx, .pdf, .txt, .csv, .xlsx)</span>
+        <input type="file" name="file" accept=".docx,.pdf,.txt,.md,.csv,.tsv,.xlsx">
+      </label>
+      <p class="muted" style="font-size:0.8rem; margin-top:6px;">
+        Spreadsheets read as <em>name, title, focus</em> — one interviewer per row.
+      </p>
+      <div class="row" style="margin-top:14px;">
+        <button type="submit">Read it</button>
+        <span class="muted" style="font-size:0.83rem;">or fill the form in below by hand</span>
+      </div>
+    </form>
+  </div>
+
+  <form method="post" action="/job/{{ job.id }}/prep/plan">
+    <div class="card">
+      <h3>Who you're meeting</h3>
+      <p class="muted" style="font-size:0.85rem;">
+        Order matters — the first person sets the tone, and the page is built in this order.
+      </p>
+      <div id="people">
+        {% for person in plan.interviewers or [none] %}
+          <div class="person">
+            <div class="formgrid">
+              <label class="field"><span>Name</span>
+                <input type="text" name="name" value="{{ person.name if person else '' }}"
+                       placeholder="Dana Lee"></label>
+              <label class="field"><span>Their title</span>
+                <input type="text" name="role" value="{{ person.role if person else '' }}"
+                       placeholder="Manager, Support"></label>
+              <label class="field"><span>What this conversation covers</span>
+                <input type="text" name="focus" value="{{ person.focus if person else '' }}"
+                       placeholder="Cross-functional collaboration"></label>
+              <label class="field"><span>LinkedIn</span>
+                <input type="text" name="linkedin" value="{{ person.linkedin if person else '' }}"
+                       placeholder="linkedin.com/in/…"></label>
+              <label class="field"><span>When</span>
+                <input type="text" name="when" value="{{ person.when if person else '' }}"
+                       placeholder="Interview 1 of 3"></label>
+            </div>
+            <button type="button" class="btn danger tiny removeperson">Remove</button>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button type="button" class="secondary" id="addPerson">Add another interviewer</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Logistics</h3>
+      <div class="formgrid">
+        <label class="field"><span>Format</span>
+          <input type="text" name="format" value="{{ plan.format }}" placeholder="Video, on-site, phone"></label>
+        <label class="field"><span>When</span>
+          <input type="text" name="scheduled" value="{{ plan.scheduled }}" placeholder="Tuesday 12 Aug, 10am"></label>
+        <label class="field"><span>Length</span>
+          <input type="text" name="duration" value="{{ plan.duration }}" placeholder="45 minutes each"></label>
+        <label class="field"><span>Recruiter</span>
+          <input type="text" name="recruiter" value="{{ plan.recruiter }}" placeholder="Name and email"></label>
+      </div>
+      <label class="field wide" style="margin-top:14px;">
+        <span>What they said they're looking for — one per line</span>
+        <textarea name="competencies" style="min-height:110px;"
+          placeholder="Build partnerships and influence without authority&#10;Use metrics to demonstrate impact">{{ plan.competencies | join('\n') }}</textarea>
+      </label>
+      <p class="muted" style="font-size:0.82rem; margin-top:6px;">
+        This becomes the scorecard on the prep page — the thing every answer should map to.
+      </p>
+      <input type="hidden" name="source_text" value="{{ plan.source_text }}">
+    </div>
+
+    <div class="row" style="margin-bottom:40px;">
+      <button type="submit">{{ 'Rebuild prep page' if existing else 'Build my prep page' }}</button>
+      <a class="btn secondary" href="/job/{{ job.id }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var list = document.getElementById("people");
+  function wireRemove(scope) {
+    scope.querySelectorAll(".removeperson").forEach(function (btn) {
+      btn.onclick = function () {
+        if (list.querySelectorAll(".person").length > 1) btn.closest(".person").remove();
+        else btn.closest(".person").querySelectorAll("input").forEach(function (i) { i.value = ""; });
+      };
+    });
+  }
+  document.getElementById("addPerson").addEventListener("click", function () {
+    var copy = list.querySelector(".person").cloneNode(true);
+    copy.querySelectorAll("input").forEach(function (i) { i.value = ""; });
+    list.appendChild(copy);
+    wireRemove(copy);
+    copy.querySelector("input").focus();
+  });
+  wireRemove(list);
+})();
+</script>
+{% endblock %}

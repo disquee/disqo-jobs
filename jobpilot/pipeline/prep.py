@@ -276,6 +276,30 @@ def _job_slug(job) -> str:
     return f"{base}-{job.id}"
 
 
+def prep_plan_path(job) -> Path:
+    return OUTPUT_DIR / "interviews" / f"{_job_slug(job)}-plan.json"
+
+
+def load_plan(job):
+    """The known loop for this job, or an empty plan."""
+    from ..models import PrepPlan
+
+    path = prep_plan_path(job)
+    if path.exists():
+        try:
+            return PrepPlan.model_validate_json(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return PrepPlan(job_id=job.id)
+
+
+def save_plan(job, plan) -> Path:
+    path = prep_plan_path(job)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(plan.model_dump_json(indent=2), encoding="utf-8")
+    return path
+
+
 def prep_json_path(job) -> Path:
     return OUTPUT_DIR / "interviews" / f"{_job_slug(job)}-prep.json"
 
@@ -354,8 +378,20 @@ def _resume_tab(application) -> list[dict]:
     return blocks
 
 
-def scaffold_from_job(job, application=None) -> dict:
-    """Build a starter prep document for ``job``, pre-loaded with its real data."""
+def _panel_id(index: int) -> str:
+    return f"panel{index + 1}"
+
+
+def scaffold_from_job(job, application=None, plan=None) -> dict:
+    """Build a starter prep document for ``job``, pre-loaded with its real data.
+
+    When a ``plan`` is known — usually parsed from the recruiter's email — the
+    page is built around the actual people and what each is assessing, rather
+    than placeholder panels the user has to rewrite.
+    """
+    people = list(getattr(plan, "interviewers", []) or [])
+    if people:
+        return _scaffold_with_plan(job, application, plan, people)
     panel = "panel1"
     return {
         "meta": {
@@ -447,6 +483,145 @@ def ensure_job_prep(job, application=None, regenerate: bool = False) -> dict[str
     if regenerate or not json_path.exists():
         json_path.parent.mkdir(parents=True, exist_ok=True)
         json_path.write_text(
-            json.dumps(scaffold_from_job(job, application), indent=2), encoding="utf-8"
+            json.dumps(scaffold_from_job(job, application, load_plan(job)), indent=2),
+            encoding="utf-8",
         )
     return render_prep_file(json_path, prep_html_path(job))
+
+
+def _scaffold_with_plan(job, application, plan, people) -> dict:
+    """Prep document built around a known loop."""
+    panels, sections, order = {}, [], ["brief", "checklist", "stories"]
+    competencies = list(getattr(plan, "competencies", []) or [])
+
+    for i, person in enumerate(people):
+        pid = _panel_id(i)
+        panels[pid] = {
+            "name": person.name or f"Interviewer {i + 1}",
+            "role": person.role or "Add their title",
+            "focus": person.focus or "What this conversation covers",
+        }
+        letter = chr(ord("A") + i)
+        sections.append({
+            "id": pid, "nav": (person.name or f"Interviewer {i+1}").split()[0],
+            "panel": pid,
+            "title": person.focus or f"Conversation with {person.name}",
+            "lede": f"**{person.name}** — {person.role}."
+                    + (f" {person.when}." if person.when else "")
+                    + " One card per anticipated question; give each a label you can read live.",
+            "kind": "qa",
+            "items": [{
+                "id": f"{letter}1", "tag": "STAR",
+                "label": "Add a short memory jog",
+                "q": "Tell me about a time you…",
+                "note": f"Replace with a question **{person.name.split()[0] if person.name else 'they'}** "
+                        f"is likely to ask, given their focus on {person.focus or 'this area'}.",
+                "stories": ["S1"],
+                "star": {"s": "The situation, with the constraint that made it hard.",
+                         "t": "What you had to change.",
+                         "a": "What you actually did — the mechanism, not just the outcome.",
+                         "r": "The result, with the number."},
+                "punch": {"label": "The line", "text": "The one sentence worth repeating in a debrief."},
+            }],
+        })
+        order.append(pid)
+
+    order += ["people", "numbers", "posting", "resume"]
+
+    logistics = [b for b in [
+        f"**Format:** {plan.format}" if plan.format else "",
+        f"**When:** {plan.scheduled}" if plan.scheduled else "",
+        f"**Length:** {plan.duration}" if plan.duration else "",
+        f"**Recruiter:** {plan.recruiter}" if plan.recruiter else "",
+    ] if b]
+
+    brief_blocks = [{
+        "type": "callout", "tone": "accent",
+        "html": f"<p><strong>{job.title}</strong> at <strong>{job.company}</strong>"
+                + (f" · fit score <strong>{job.fit_score}</strong>" if job.fit_score is not None else "")
+                + ("<br>" + "<br>".join(_re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", b)
+                                        for b in logistics) if logistics else "")
+                + "</p>",
+    }, {"type": "h3", "text": "Who you're meeting"},
+        {"type": "ul", "items": [
+            f"**{p.name}** — {p.role}" + (f" · *{p.focus}*" if p.focus else "")
+            for p in people]}]
+
+    if competencies:
+        brief_blocks += [
+            {"type": "h3", "text": "What they said they're looking for"},
+            {"type": "ul", "items": competencies},
+            {"type": "p", "text": "Treat this as **the scorecard**. Every answer should map to one of these."},
+        ]
+    brief_blocks += [
+        {"type": "h3", "text": "Fill these in next"},
+        {"type": "ul", "items": [
+            "Which **story** you lead with for each person, so you don't repeat one across the loop.",
+            "The **numbers** you want to land, on the cheat sheet.",
+            "Two **questions to ask** each interviewer.",
+        ]},
+    ]
+
+    sections = [
+        {"id": "brief", "nav": "The Loop", "title": "How to read this loop",
+         "lede": f"{len(people)} conversation{'' if len(people) == 1 else 's'}"
+                 + (f", {plan.duration}" if plan.duration else "") + ".",
+         "kind": "prose", "blocks": brief_blocks},
+        {"id": "checklist", "nav": "Checklist", "title": "Before the loop",
+         "lede": "Decisions first, rehearsal second.", "kind": "checklist",
+         "groups": [{"title": "1 · Decide and confirm", "items": [
+             {"id": "k1", "text": "Confirm the **order** you meet people and how long each is."},
+             {"id": "k2", "text": "Decide your **salary number** and say it without hedging."},
+             {"id": "k3", "text": "Re-read the posting and mark anything you have **no story for**.",
+              "go": {"sec": "posting", "id": None}},
+             {"id": "k4", "text": "Skim your **tailored resume** — that's what they're reading.",
+              "go": {"sec": "resume", "id": None}},
+             {"id": "k5", "text": "Look each interviewer up before the day.",
+              "detail": " · ".join(f"[{p.name}]({p.linkedin})" if p.linkedin else p.name
+                                   for p in people)},
+         ]}]},
+        {"id": "stories", "nav": "Story Rotation", "title": "Story rotation tracker",
+         "lede": "One story per interviewer — a panel compares notes afterwards.",
+         "kind": "tracker"},
+    ] + sections + [
+        {"id": "people", "nav": "People", "title": "Who you're meeting",
+         "lede": "One card per interviewer, in the order you meet them.", "kind": "people",
+         "cards": [{
+             "panel": _panel_id(i), "when": p.when or f"Interview {i + 1}",
+             "scoring": ([p.focus] if p.focus else []) + competencies[:4]
+                        or ["Add what this person is evaluating"],
+             "lead": [{"id": f"{chr(ord('A') + i)}1", "sec": _panel_id(i),
+                       "label": "Add a short memory jog"}],
+             "watch": (f"[LinkedIn]({p.linkedin})  " if p.linkedin else "")
+                      + "Anything that changes how you pitch to this person.",
+             "questions": ["What does success look like at six months?"],
+         } for i, p in enumerate(people)],
+         "anyGroup": {"title": "For any of them", "items": [
+             "Is this a **new role or a backfill** — and what did the last person get furthest on?"]}},
+        {"id": "numbers", "nav": "Numbers", "title": "Numbers cheat sheet",
+         "lede": "Lead with the number when they're moving fast.", "kind": "numbers",
+         "rows": [{"v": "Add a metric", "s": "Where it came from", "w": "What it proves."}]},
+        {"id": "posting", "nav": "Posting", "title": "The job posting",
+         "lede": "Pulled from the posting disqo jobs scored. **The competency language here is what your answers are scored against.**",
+         "kind": "prose", "blocks": _posting_blocks(job)},
+        {"id": "resume", "nav": "Resume", "title": "Resume",
+         "lede": "The tailored resume generated for this job — **what the interviewer is reading from.**",
+         "kind": "resume",
+         "tabs": [{"id": "sent", "label": "Tailored for this role",
+                   "note": "Generated by disqo jobs for this posting.",
+                   "blocks": _resume_tab(application)}]},
+    ]
+
+    return {
+        "meta": {
+            "title": f"{job.company} · Prep",
+            "subtitle": job.title,
+            "file": f"{_job_slug(job)}-prep",
+            "doc_file": f"{_job_slug(job)}-prep-doc",
+            "order": order,
+        },
+        "panels": panels,
+        "stories": [{"id": "S1", "label": "Add your first story",
+                     "metric": "The number it turns on", "rec": [_panel_id(0)]}],
+        "sections": sections,
+    }

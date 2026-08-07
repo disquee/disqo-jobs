@@ -127,6 +127,34 @@ class WorkSearchActivity(BaseModel):
         return self
 
 
+class Interviewer(BaseModel):
+    """One person on an interview loop."""
+
+    name: str = ""
+    role: str = ""            # their title
+    focus: str = ""           # what this conversation covers
+    linkedin: str = ""
+    when: str = ""            # "Interview 1 of 3", or a date/time
+
+
+class PrepPlan(BaseModel):
+    """What's known about an upcoming loop, before the prep page is built.
+
+    Usually assembled from the email a recruiter sends, which is where this
+    information actually lives.
+    """
+
+    job_id: str = ""
+    interviewers: list[Interviewer] = Field(default_factory=list)
+    format: str = ""          # video / onsite / phone
+    scheduled: str = ""
+    duration: str = ""        # "45 minutes each"
+    recruiter: str = ""
+    competencies: list[str] = Field(default_factory=list)
+    notes: str = ""
+    source_text: str = ""     # the pasted email, kept for reference
+
+
 class ScreeningQA(BaseModel):
     question: str
     answer: str
