@@ -39,16 +39,36 @@
       {{ {'none':'not started','started':'in progress','complete':'complete'}[job.prep_status.value] }}
     </span>
   </div>
-  <p class="muted" style="margin-top:8px;">
-    Generates a prep page for this role, pre-loaded with the posting, the fit score
-    and rationale, and the tailored resume. Everything else you fill in.
-  </p>
+  {% if prep_exists and prep_is_placeholder %}
+    <div class="note tone-warn" style="margin-top:10px;">
+      This page is still placeholders. Add who you're meeting — paste the recruiter's
+      email into <a href="/job/{{ job.id }}/prep/new">Edit who I'm meeting</a> and it
+      builds a section per interviewer.
+    </div>
+  {% elif prep_exists and prep_plan.interviewers %}
+    <p class="muted" style="margin-top:8px; font-size:0.86rem;">
+      Built around {{ prep_plan.interviewers | length }}
+      interviewer{{ '' if prep_plan.interviewers | length == 1 else 's' }}:
+      {{ prep_plan.interviewers | map(attribute='name') | join(', ') }}.
+    </p>
+  {% else %}
+    <p class="muted" style="margin-top:8px;">
+      Generates a prep page for this role, pre-loaded with the posting, the fit score
+      and rationale, and the tailored resume. Everything else you fill in.
+    </p>
+  {% endif %}
   <div class="row" style="margin-top:12px;">
     {% if prep_exists %}
       <a class="btn" href="/job/{{ job.id }}/prep" target="_blank" rel="noopener">Open prep →</a>
       <a class="btn secondary" href="/job/{{ job.id }}/prep/new">Edit who I'm meeting</a>
     {% else %}
       <a class="btn" href="/job/{{ job.id }}/prep/new">Set up prep</a>
+    {% endif %}
+    {% if prep_exists %}
+      <form class="inline" method="post" action="/job/{{ job.id }}/prep/delete"
+            onsubmit="return confirm('Remove this prep page and start over? The files are kept as .removed-… copies.');">
+        <button class="danger" type="submit">Remove prep page</button>
+      </form>
     {% endif %}
     <form class="inline" method="post" action="/job/{{ job.id }}/prep-status">
       <input type="hidden" name="value"

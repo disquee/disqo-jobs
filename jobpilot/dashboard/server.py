@@ -64,7 +64,8 @@ from ..usage import estimate_per_job, set_rates, summary as usage_summary
 from ..worklog import week_start
 from . import tasks
 from ..pipeline.prep import (
-    ensure_job_prep, load_plan, prep_html_path, prep_json_path, save_plan,
+    ensure_job_prep, load_plan, prep_html_path, prep_json_path, prep_plan_path,
+    save_plan,
 )
 from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, render_pdf, resume_path
@@ -153,6 +154,22 @@ def _startup() -> None:
     # corrupted database costs at most a day.
     if not backed_up_today():
         threading.Thread(target=run_backup, daemon=True).start()
+
+
+def _prep_is_placeholder(job) -> bool:
+    """True when the page exists but nothing has been written into it yet."""
+    path = prep_json_path(job)
+    if not path.exists():
+        return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    items = [i for s in data.get("sections", []) if s.get("kind") == "qa"
+             for i in s.get("items", [])]
+    if not items:
+        return True
+    return all("Add a short memory jog" in (i.get("label") or "") for i in items)
 
 
 def _interviewing_ids() -> set[str]:
@@ -245,6 +262,8 @@ def job_detail(request: Request, job_id: str):
             "screening_json": screening_json,
             "PrepStatus": PrepStatus,
             "prep_exists": prep_html_path(job).exists(),
+            "prep_plan": load_plan(job),
+            "prep_is_placeholder": _prep_is_placeholder(job),
             "display_status": display_status,
             "settings": load_settings(),
         },
@@ -407,6 +426,24 @@ def open_prep(job_id: str):
     except Exception:
         pass  # a stale page still beats an error page
     return FileResponse(path, media_type="text/html")
+
+
+@app.post("/job/{job_id}/prep/delete")
+def prep_delete(job_id: str):
+    """Start over. Files are renamed rather than deleted, so nothing is lost."""
+    job = get_job(job_id)
+    if not job:
+        return RedirectResponse("/", status_code=303)
+    from datetime import datetime as _dt
+
+    stamp = _dt.now().strftime("%Y%m%d-%H%M%S")
+    for path in (prep_json_path(job), prep_html_path(job), prep_plan_path(job)):
+        if path.exists():
+            path.rename(path.with_name(f"{path.stem}.removed-{stamp}{path.suffix}"))
+    job.prep_status = PrepStatus.none
+    job.prep_json_path = job.prep_html_path = None
+    save_job(job)
+    return RedirectResponse(f"/job/{job_id}", status_code=303)
 
 
 @app.post("/job/{job_id}/prep-status")
