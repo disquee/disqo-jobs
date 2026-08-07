@@ -1,4 +1,4 @@
-"""jobpilot command-line interface."""
+"""disqo jobs command-line interface."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def status():
     """Show counts by pipeline stage."""
     init_db()
     counts = counts_by_status()
-    table = Table(title="jobpilot status")
+    table = Table(title="disqo-jobs status")
     table.add_column("Stage")
     table.add_column("Count", justify="right")
     for st in Status:
@@ -90,7 +90,7 @@ def review():
             job.status.value, job.id,
         )
     console.print(table)
-    console.print("\nStart the dashboard to review & apply:  jobpilot serve")
+    console.print("\nStart the dashboard to review & apply:  disqo-jobs serve")
 
 
 @app.command()

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set nav = 'queue' %}
-{% block title %}{{ job.title }} · jobpilot{% endblock %}
+{% block title %}{{ job.title }} · disqo jobs{% endblock %}
 {% block content %}
 <p><a href="/" class="muted">← Back to queue</a></p>
 
@@ -110,7 +110,7 @@
     <h3>Apply</h3>
     <p class="muted">Launch opens a browser on your machine with basic fields pre-filled
       and your resume attached where detected. Review, answer the rest, and submit
-      yourself — <strong>jobpilot never clicks submit</strong>. Then mark it applied.</p>
+      yourself — <strong>disqo jobs never clicks submit</strong>. Then mark it applied.</p>
     <div class="row" style="margin-top:12px;">
       <form class="inline" method="post" action="/job/{{ job.id }}/launch">
         <button type="submit">Launch assisted apply</button>
@@ -120,7 +120,7 @@
       </form>
     </div>
     <p class="muted" style="margin-top:10px; font-size:0.82rem;">
-      Terminal alternative: <code>jobpilot apply {{ job.id }}</code></p>
+      Terminal alternative: <code>disqo-jobs apply {{ job.id }}</code></p>
   </div>
 {% endif %}
 {% endblock %}

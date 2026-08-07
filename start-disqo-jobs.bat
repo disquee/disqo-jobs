@@ -1,5 +1,5 @@
 @echo off
-REM Double-click this file to start jobpilot on Windows.
+REM Double-click this file to start disqo jobs on Windows.
 cd /d "%~dp0"
 
 where py >nul 2>&1 && set PY=py -3 || set PY=python
@@ -21,13 +21,13 @@ call .venv\Scripts\activate.bat || goto :fail
 
 python -c "import jobpilot" >nul 2>&1
 if errorlevel 1 (
-  echo   Installing jobpilot...
+  echo   Installing disqo jobs...
   python -m pip install --quiet --upgrade pip >nul 2>&1
   python -m pip install --quiet -e . || goto :fail
 )
 
 echo.
-echo   Starting jobpilot at http://127.0.0.1:8000
+echo   Starting disqo jobs at http://127.0.0.1:8000
 echo   Leave this window open while you use it. Close it to quit.
 start "" http://127.0.0.1:8000
 python -m uvicorn jobpilot.dashboard.server:app --host 127.0.0.1 --port 8000

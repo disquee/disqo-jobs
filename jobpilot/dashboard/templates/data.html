@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set nav = 'data' %}
-{% block title %}Your data · jobpilot{% endblock %}
+{% block title %}Your data · disqo jobs{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1 class="page-title">Your data</h1>
@@ -32,7 +32,7 @@
 
 <div class="card">
   <h3>Where it lives</h3>
-  <p class="muted" style="font-size:0.86rem;">Deliberately outside the jobpilot app folder,
+  <p class="muted" style="font-size:0.86rem;">Deliberately outside the disqo jobs app folder,
     so updating or deleting the app never touches your records.</p>
   <p style="margin-top:10px;"><code>{{ data_dir }}</code></p>
   <div class="row" style="margin-top:14px;">
@@ -47,9 +47,9 @@
 <div class="card">
   <h3>Automatic backups</h3>
   <p class="muted" style="font-size:0.86rem;">
-    Runs each time jobpilot starts, at most once a day. Every backup keeps a copy of
+    Runs each time disqo jobs starts, at most once a day. Every backup keeps a copy of
     the database <em>and</em> the work-search log as a spreadsheet — so your records
-    stay readable even if jobpilot is long gone. Daily copies are kept for 30 days;
+    stay readable even if disqo jobs is long gone. Daily copies are kept for 30 days;
     the first backup of each month is kept indefinitely.
   </p>
   {% if backups %}
@@ -83,7 +83,7 @@
   </p>
   <ul class="prose-list">
     <li><strong>Drag the backups folder into Dropbox, iCloud Drive, or Google Drive</strong>
-      every so often — or point jobpilot at a synced folder by setting
+      every so often — or point disqo jobs at a synced folder by setting
       <code>JOBPILOT_DATA_DIR</code>.</li>
     <li><strong>Email yourself the spreadsheet</strong> once a week. It's small, and a
       dated email is its own timestamped record if an agency ever asks.</li>
@@ -97,7 +97,7 @@
 <div class="card">
   <h3>Restore from a backup</h3>
   <p class="muted" style="font-size:0.86rem;">
-    Replaces everything currently in jobpilot with the contents of a backup file
+    Replaces everything currently in disqo jobs with the contents of a backup file
     (<code>jobpilot-YYYY-MM-DD.db</code>). Your current database is saved alongside the
     backups first, so this is reversible.
   </p>

@@ -1,7 +1,7 @@
-# jobpilot — Setup Prompt
+# disqo jobs — Setup Prompt
 
 **What this file is.** A prompt you hand to your own coding agent (Claude Code, Cursor,
-Aider, Copilot, Codex, or any agentic LLM) to install jobpilot, point it at *your*
+Aider, Copilot, Codex, or any agentic LLM) to install disqo jobs, point it at *your*
 model provider, and get it running against your own job search.
 
 **How to use it.** Clone the repo, open your agent in the repo root, and say:
@@ -61,7 +61,7 @@ at import time on macOS, and **falls back to writing `.html` instead of `.pdf`**
 native libs are missing. If the user sees HTML where they expected PDFs, that's the
 cause.
 
-**Checkpoint:** `pytest` passes and `jobpilot --help` lists
+**Checkpoint:** `pytest` passes and `disqo jobs --help` lists
 `discover, status, review, tailor, apply, prep, serve`.
 
 ---
@@ -120,7 +120,7 @@ The two AI steps have real requirements:
 Use a strong instruction-following model with reliable JSON output. Small or heavily
 quantized local models tend to fail in two specific ways: malformed JSON that defeats
 `_extract_json`, and invented employment history. If the user wants a local model,
-have them run `jobpilot tailor <job_id>` on one job and read the output closely
+have them run `disqo-jobs tailor <job_id>` on one job and read the output closely
 before trusting a batch run.
 
 `config.yaml` notes that `fit_threshold: 55` was calibrated against a Haiku-class
@@ -199,10 +199,10 @@ discover → fit-score → tailor → human review → assisted apply → CSV lo
 ```
 
 ```bash
-jobpilot discover --tailor      # pull, score, tailor above threshold
-jobpilot status                 # counts by stage
-jobpilot serve                  # review dashboard at 127.0.0.1:8000
-jobpilot apply <job_id>         # prefills; the human submits
+disqo-jobs discover --tailor      # pull, score, tailor above threshold
+disqo-jobs status                 # counts by stage
+disqo-jobs serve                  # review dashboard at 127.0.0.1:8000
+disqo-jobs apply <job_id>         # prefills; the human submits
 ```
 
 Outputs land in `output/resumes/`, `output/cover_letters/`, and
@@ -216,7 +216,7 @@ reach a real employer under their name.
 
 ## Phase 6 — Interview prep pages
 
-`jobpilot prep <data.json>` renders a **self-contained, offline HTML page** from a JSON
+`disqo-jobs prep <data.json>` renders a **self-contained, offline HTML page** from a JSON
 file — no network requests, works from `file://`. It's built for live use during an
 interview: search, per-interviewer sections, story-rotation tracking, rehearse mode,
 a printable cheat card.
@@ -225,9 +225,9 @@ a printable cheat card.
 markdown copy can never drift from the page:
 
 ```bash
-jobpilot prep output/interviews/<loop>.json    # page + markdown + PDF, then opens
-jobpilot prep <data.json> --no-docs            # page only
-jobpilot prep <data.json> -o out.html --no-open
+disqo-jobs prep output/interviews/<loop>.json    # page + markdown + PDF, then opens
+disqo-jobs prep <data.json> --no-docs            # page only
+disqo-jobs prep <data.json> -o out.html --no-open
 ```
 
 | Artifact | Filename from |
@@ -253,7 +253,7 @@ and candidate — exercising **every section kind and every field**. Render it f
 the user can see what they're filling in:
 
 ```bash
-jobpilot prep examples/prep.sample.json -o /tmp/sample.html
+disqo-jobs prep examples/prep.sample.json -o /tmp/sample.html
 ```
 
 Then copy it, replace the content, and keep the shape.
@@ -324,6 +324,6 @@ the rotation tracker; ids that don't exist in `stories` will simply have no link
 - [ ] `complete()` and `complete_json()` work against the user's provider
 - [ ] `profile/resume_master.md` is filled in, metric-rich, and **not** committed
 - [ ] `git status` shows no `.env` and no profile PII
-- [ ] `jobpilot discover --tailor` produces at least one tailored resume the user has
+- [ ] `disqo-jobs discover --tailor` produces at least one tailored resume the user has
       **read in full and judged accurate**
 - [ ] `fit_threshold` sanity-checked against the chosen model

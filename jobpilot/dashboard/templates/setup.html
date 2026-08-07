@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Set up jobpilot{% endblock %}
+{% block title %}Set up disqo jobs{% endblock %}
 
 {% block content %}
 <div class="wizard">
@@ -34,7 +34,7 @@
           <input type="radio" name="llm_mode" value="manual">
           <span>
             <strong>No API key — copy and paste</strong>
-            <span class="muted">jobpilot writes the instructions, you paste them into
+            <span class="muted">disqo jobs writes the instructions, you paste them into
               ChatGPT or Claude in a browser tab and paste the answer back. Free if you
               already have an account, but you do the copying.</span>
           </span>
@@ -103,7 +103,7 @@
 
       <p class="muted" style="margin-top:14px; font-size:0.82rem;">
         <strong>More detail is better.</strong> Include every role, and put numbers on
-        what you did — "cut support tickets 40%" beats "improved support". jobpilot can
+        what you did — "cut support tickets 40%" beats "improved support". disqo jobs can
         only reuse what's here; it will never invent experience for you.
       </p>
     </div>
@@ -177,7 +177,7 @@
         <a class="btn secondary" href="/">Go to my jobs</a>
       </div>
       <p class="muted" style="margin-top:18px; font-size:0.85rem;">
-        To search automatically across job boards, run <code>jobpilot discover --tailor</code>
+        To search automatically across job boards, run <code>disqo-jobs discover --tailor</code>
         in a terminal. Pasting links works without ever touching one.
       </p>
       <p class="muted" style="margin-top:10px; font-size:0.85rem;">

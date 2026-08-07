@@ -24,6 +24,8 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [project.scripts]
+disqo-jobs = "jobpilot.cli:app"
+# kept so existing installs and scripts keep working
 jobpilot = "jobpilot.cli:app"
 
 [tool.pytest.ini_options]

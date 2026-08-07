@@ -1,5 +1,5 @@
 #!/bin/bash
-# Double-click this file to start jobpilot. macOS and Linux.
+# Double-click this file to start disqo jobs. macOS and Linux.
 # It sets everything up the first time, then just opens your browser.
 cd "$(dirname "$0")" || exit 1
 set -o pipefail
@@ -30,13 +30,13 @@ fi
 . .venv/bin/activate || fail "Couldn't activate the environment."
 
 if ! python -c "import jobpilot" >/dev/null 2>&1; then
-  say "Installing jobpilot…"
+  say "Installing disqo jobs…"
   pip install --quiet --upgrade pip >/dev/null 2>&1
   pip install --quiet -e . || fail "Install failed. Check your internet connection."
 fi
 
 URL="http://127.0.0.1:8000"
-say "Starting jobpilot at $URL"
+say "Starting disqo jobs at $URL"
 say "Leave this window open while you use it. Close it to quit."
 ( sleep 2; command -v open >/dev/null 2>&1 && open "$URL" || \
   { command -v xdg-open >/dev/null 2>&1 && xdg-open "$URL"; } ) >/dev/null 2>&1 &

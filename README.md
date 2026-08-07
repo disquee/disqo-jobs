@@ -1,11 +1,11 @@
-# jobpilot
+# disqo jobs
 
 AI job-application assistant. It discovers jobs from ToS-compliant sources, scores
 how well each fits your profile, drafts a tailored resume + cover letter + screening
 answers, lets you review/edit, helps you apply (you submit), and logs every
 application to a CSV.
 
-> **Scope & safety.** jobpilot does **not** scrape LinkedIn or auto-submit
+> **Scope & safety.** disqo jobs does **not** scrape LinkedIn or auto-submit
 > applications. Discovery uses official APIs (Adzuna, Jooble) and public ATS boards
 > (Greenhouse, Lever). "Apply" opens a real browser, pre-fills what it can, and hands
 > control to you for the final submit. This keeps your accounts safe and your
@@ -14,7 +14,7 @@ application to a CSV.
 ## Setup
 
 ```bash
-cd jobpilot
+cd disqo jobs
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 playwright install chromium            # for assisted apply
@@ -44,10 +44,10 @@ security add-generic-password -a "$USER" -s ANTHROPIC_API_KEY -w 'sk-ant-...'
 ## Use
 
 ```bash
-jobpilot discover --tailor     # pull jobs, score them, tailor those above threshold
-jobpilot status                # counts by stage
-jobpilot serve                 # open the review dashboard at http://127.0.0.1:8000
-jobpilot apply <job_id>        # assisted apply for one job (or use the dashboard)
+disqo-jobs discover --tailor     # pull jobs, score them, tailor those above threshold
+disqo-jobs status                # counts by stage
+disqo-jobs serve                 # open the review dashboard at http://127.0.0.1:8000
+disqo-jobs apply <job_id>        # assisted apply for one job (or use the dashboard)
 ```
 
 ### Pipeline
