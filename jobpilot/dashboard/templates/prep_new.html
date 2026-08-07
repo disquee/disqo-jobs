@@ -47,6 +47,10 @@
       <div id="people">
         {% for person in plan.interviewers or [none] %}
           <div class="person">
+            <div class="person-head">
+              <span class="person-num"></span>
+              <button type="button" class="btn danger tiny removeperson">Remove</button>
+            </div>
             <div class="formgrid">
               <label class="field"><span>Name</span>
                 <input type="text" name="name" value="{{ person.name if person else '' }}"
@@ -64,7 +68,6 @@
                 <input type="text" name="when" value="{{ person.when if person else '' }}"
                        placeholder="Interview 1 of 3"></label>
             </div>
-            <button type="button" class="btn danger tiny removeperson">Remove</button>
           </div>
         {% endfor %}
       </div>

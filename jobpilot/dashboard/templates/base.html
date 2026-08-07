@@ -174,8 +174,15 @@ input[type="text"]:focus, input[type="date"]:focus, select:focus {
 .formgrid .wide { grid-column:1 / -1; }
 .print-only { display:none; }
 .person { padding:14px; border:1px solid var(--line); border-radius:var(--radius);
-  margin-bottom:10px; position:relative; }
-.person .removeperson { position:absolute; top:10px; right:10px; }
+  margin-bottom:10px; }
+.person-head { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; margin-bottom:12px; }
+/* Numbered by CSS so adding or removing a row renumbers the rest for free. */
+#people { counter-reset:person; }
+.person { counter-increment:person; }
+.person-num { font-size:0.72rem; font-weight:650; letter-spacing:0.04em;
+  text-transform:uppercase; color:var(--muted); }
+.person-num::before { content:"Interviewer " counter(person); }
 
 /* Home: what to do next */
 .nextgrid { display:grid; gap:14px; grid-template-columns:repeat(3, minmax(0, 1fr));
