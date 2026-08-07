@@ -175,9 +175,16 @@ input[type="text"]:focus, input[type="date"]:focus, select:focus {
 .print-only { display:none; }
 
 /* Home: what to do next */
-.nextgrid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(290px, 1fr));
+.nextgrid { display:grid; gap:14px; grid-template-columns:repeat(3, minmax(0, 1fr));
   margin-bottom:14px; }
+@media (max-width: 1000px) { .nextgrid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 660px)  { .nextgrid { grid-template-columns:1fr; } }
 .card.next { margin-bottom:0; }
+/* Spans the row beneath the three summary cards. */
+.card.next--wide { grid-column:1 / -1; }
+.next--wide .widesplit { display:grid; gap:18px 28px; grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr);
+  align-items:start; }
+@media (max-width: 760px) { .next--wide .widesplit { grid-template-columns:1fr; } }
 .nextlist { list-style:none; margin:10px 0 12px; padding:0; display:grid;
   gap:7px 14px; align-items:baseline; font-size:0.9rem; }
 /* Rows contribute their cells to the list's own grid, so every company starts

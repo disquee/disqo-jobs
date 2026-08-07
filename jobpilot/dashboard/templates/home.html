@@ -86,29 +86,45 @@
   </div>
 
   {# ------------------------------------------------ interviews #}
-  <div class="card next">
+  <div class="card next next--wide">
     <h3>Interviews</h3>
-    {% if interviewing_total %}
-      <p class="muted" style="font-size:0.85rem;">
-        {{ interviewing_total }} in progress.</p>
-    {% else %}
-      <p class="muted" style="font-size:0.88rem;">None logged yet. Mark a log entry
-        <em>Interviewing</em> and it shows up here.</p>
-    {% endif %}
-    {% if needs_prep %}
-      <p class="muted" style="font-size:0.85rem; margin-top:10px;">Prep not finished for:</p>
-      <ul class="nextlist nextlist--plain">
-        {% for job in needs_prep %}
-          <li>
-            <a class="jobtitle" href="/job/{{ job.id }}" title="{{ job.company }}">{{ job.company }}</a>
-            <span class="company" title="{{ job.title }}">{{ job.title }}</span>
-          </li>
-        {% endfor %}
-      </ul>
-      <a class="btn secondary tiny" href="/prep">Interview prep</a>
-    {% endif %}
+    <div class="widesplit">
+      <div>
+        {% if interviewing_total %}
+          <div class="weekcount tone-ok" style="margin-top:4px;">
+            <span class="weeknum">{{ interviewing_total }}</span>
+            <span class="muted">in progress</span>
+          </div>
+          <p class="muted" style="font-size:0.83rem; margin-top:10px;">
+            Marked <em>Interviewing</em> in your work search log.</p>
+        {% else %}
+          <p class="muted" style="font-size:0.88rem;">None logged yet. Mark a log entry
+            <em>Interviewing</em> and it shows up here.</p>
+          <div class="row" style="margin-top:12px;">
+            <a class="btn secondary tiny" href="/applied">Open the log</a>
+          </div>
+        {% endif %}
+      </div>
+      <div>
+        {% if needs_prep %}
+          <p class="muted" style="font-size:0.85rem;">Prep not finished for:</p>
+          <ul class="nextlist nextlist--plain">
+            {% for job in needs_prep %}
+              <li>
+                <a class="jobtitle" href="/job/{{ job.id }}" title="{{ job.company }}">{{ job.company }}</a>
+                <span class="company" title="{{ job.title }}">{{ job.title }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+          <a class="btn secondary tiny" href="/prep">Interview prep</a>
+        {% else %}
+          <p class="muted" style="font-size:0.85rem;">
+            Every job you've applied to has a prep page ready.
+            <a href="/prep">Open interview prep</a>.</p>
+        {% endif %}
+      </div>
+    </div>
   </div>
-</div>
 
 {# ------------------------------------------------ progress strip #}
 <div class="card" style="margin-top:6px;">
