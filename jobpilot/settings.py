@@ -105,8 +105,10 @@ def profile_ready() -> bool:
 
 
 def needs_setup() -> bool:
-    """True until the wizard has been completed at least once."""
-    settings = load_settings()
-    if not settings.onboarded:
-        return True
+    """True only when there's genuinely nothing to work with.
+
+    Keyed on the profile rather than the onboarded flag: installs that predate
+    the wizard have a resume and profile but no settings.json, and pushing those
+    users through setup would be wrong.
+    """
     return not profile_ready()

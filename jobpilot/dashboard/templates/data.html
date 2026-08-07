@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% set nav = 'data' %}
+{% block title %}Your data · jobpilot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Your data</h1>
+  <span class="page-sub"><a href="/setup?step=welcome">Change setup &amp; AI settings →</a></span>
+</div>
+
+{% if msg %}<div class="note tone-ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="note tone-warn">{{ err }}</div>{% endif %}
+
+{% if days_since is none %}
+  <div class="note tone-warn">No backup yet. Click <strong>Back up now</strong> below.</div>
+{% elif days_since > 7 %}
+  <div class="note tone-warn">Last backup was {{ days_since }} days ago.</div>
+{% endif %}
+
+<div class="card">
+  <h3>What you have</h3>
+  <div class="statgrid">
+    <div><span class="statnum">{{ activity_count }}</span><span class="statlabel">work-search activities</span></div>
+    <div><span class="statnum">{{ job_count }}</span><span class="statlabel">jobs tracked</span></div>
+    <div><span class="statnum">{{ db_size_mb }} MB</span><span class="statlabel">database size</span></div>
+  </div>
+  {% if first_activity %}
+    <p class="muted" style="margin-top:12px; font-size:0.86rem;">
+      Log covers <strong>{{ first_activity }}</strong> to <strong>{{ last_activity }}</strong>.
+    </p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Where it lives</h3>
+  <p class="muted" style="font-size:0.86rem;">Deliberately outside the jobpilot app folder,
+    so updating or deleting the app never touches your records.</p>
+  <p style="margin-top:10px;"><code>{{ data_dir }}</code></p>
+  <div class="row" style="margin-top:14px;">
+    <form class="inline" method="post" action="/data/backup">
+      <button type="submit">Back up now</button>
+    </form>
+    <a class="btn secondary" href="/log/export.xlsx">Download log (.xlsx)</a>
+    <a class="btn secondary" href="/log/export.csv">Download log (.csv)</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Automatic backups</h3>
+  <p class="muted" style="font-size:0.86rem;">
+    Runs each time jobpilot starts, at most once a day. Every backup keeps a copy of
+    the database <em>and</em> the work-search log as a spreadsheet — so your records
+    stay readable even if jobpilot is long gone. Daily copies are kept for 30 days;
+    the first backup of each month is kept indefinitely.
+  </p>
+  {% if backups %}
+    <div class="tablecard" style="margin-top:12px;"><div class="scroll">
+      <table>
+        <thead><tr><th>When</th><th>Type</th><th>File</th><th>Size</th></tr></thead>
+        <tbody>
+        {% for b in backups %}
+          <tr>
+            <td style="white-space:nowrap; font-family:var(--mono); font-size:0.82rem;">{{ b.when.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td><span class="pill">{{ b.kind }}</span></td>
+            <td style="overflow-wrap:anywhere;">{{ b.name }}</td>
+            <td class="muted" style="white-space:nowrap;">{{ b.size_kb }} KB</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div></div>
+  {% else %}
+    <p class="muted" style="margin-top:10px;">No backups yet.</p>
+  {% endif %}
+  <p class="muted" style="margin-top:12px; font-size:0.82rem;">
+    Folder: <code>{{ backup_dir }}</code>
+  </p>
+</div>
+
+<div class="card">
+  <h3>Keep a copy somewhere else</h3>
+  <p class="muted" style="font-size:0.86rem;">
+    Backups on the same laptop don't survive a lost or broken laptop. Two options:
+  </p>
+  <ul class="prose-list">
+    <li><strong>Drag the backups folder into Dropbox, iCloud Drive, or Google Drive</strong>
+      every so often — or point jobpilot at a synced folder by setting
+      <code>JOBPILOT_DATA_DIR</code>.</li>
+    <li><strong>Email yourself the spreadsheet</strong> once a week. It's small, and a
+      dated email is its own timestamped record if an agency ever asks.</li>
+  </ul>
+  <p class="muted" style="font-size:0.82rem;">
+    Sync the <em>backups</em> rather than the live database — cloud services can corrupt
+    a database file that's being written while it syncs.
+  </p>
+</div>
+
+<div class="card">
+  <h3>Restore from a backup</h3>
+  <p class="muted" style="font-size:0.86rem;">
+    Replaces everything currently in jobpilot with the contents of a backup file
+    (<code>jobpilot-YYYY-MM-DD.db</code>). Your current database is saved alongside the
+    backups first, so this is reversible.
+  </p>
+  <form method="post" action="/data/restore" enctype="multipart/form-data"
+        onsubmit="return confirm('Replace all current data with this backup?');"
+        style="margin-top:12px;">
+    <label class="field wide"><span>Backup file</span>
+      <input type="file" name="file" accept=".db"></label>
+    <div class="row" style="margin-top:12px;">
+      <button class="secondary" type="submit">Restore</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

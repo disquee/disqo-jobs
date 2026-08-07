@@ -12,7 +12,7 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Iterator, Optional
 
-from .config import DB_PATH
+from .config import DB_PATH, OUTPUT_DIR, ROOT
 from .models import Application, Job, Status, WorkSearchActivity
 
 _SCHEMA = """
@@ -53,6 +53,29 @@ def _conn() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with _conn() as c:
         c.executescript(_SCHEMA)
+    _repair_moved_paths()
+
+
+def _repair_moved_paths() -> None:
+    """Rewrite absolute paths saved before user data moved out of the app folder.
+
+    Rows store paths to generated PDFs and prep pages; after the one-time move
+    those strings point at a directory that no longer exists. Idempotent.
+    """
+    legacy = str(ROOT / "output")
+    current = str(OUTPUT_DIR)
+    if legacy == current:
+        return
+    with _conn() as c:
+        for table, key in (("applications", "job_id"), ("jobs", "id")):
+            rows = c.execute(
+                f"SELECT {key} k, data FROM {table} WHERE data LIKE ?", (f"%{legacy}%",)
+            ).fetchall()
+            for row in rows:
+                c.execute(
+                    f"UPDATE {table} SET data = ? WHERE {key} = ?",
+                    (row["data"].replace(legacy, current), row["k"]),
+                )
 
 
 # ---- jobs -------------------------------------------------------------

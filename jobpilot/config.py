@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -15,9 +17,55 @@ load_dotenv()
 
 ROOT = Path(__file__).resolve().parent.parent
 PROFILE_DIR = ROOT / "profile"
-OUTPUT_DIR = ROOT / "output"
-DB_PATH = ROOT / "jobpilot.db"
+
+
+def data_dir() -> Path:
+    """Where the user's own data lives — deliberately OUTSIDE the app folder.
+
+    A job search runs for months and the work-search log can be needed for
+    unemployment reporting long after the fact. Keeping it next to the code
+    means "download the new version" or a tidy-up of the folder destroys it.
+    Override with JOBPILOT_DATA_DIR (useful for pointing at a synced folder).
+    """
+    override = os.getenv("JOBPILOT_DATA_DIR")
+    if override:
+        return Path(override).expanduser()
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "jobpilot"
+    if os.name == "nt":
+        return Path(os.getenv("APPDATA") or Path.home()) / "jobpilot"
+    return Path(os.getenv("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "jobpilot"
+
+
+DATA_DIR = data_dir()
+OUTPUT_DIR = DATA_DIR / "output"
+BACKUP_DIR = DATA_DIR / "backups"
+DB_PATH = DATA_DIR / "jobpilot.db"
 CSV_PATH = OUTPUT_DIR / "applications.csv"
+
+
+def _migrate_legacy_data() -> None:
+    """Move data written by older versions out of the app folder, once.
+
+    Idempotent and non-destructive: anything already in the new location wins
+    and the legacy copy is left alone rather than merged.
+    """
+    moves = [(ROOT / "jobpilot.db", DB_PATH), (ROOT / "output", OUTPUT_DIR)]
+    if not any(old.exists() for old, _ in moves):
+        return
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        for old, new in moves:
+            if old.exists() and not new.exists():
+                new.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(old), str(new))
+                print(f"[jobpilot] moved {old.name} -> {new}", file=sys.stderr)
+    except OSError as e:  # never let a migration failure block startup
+        print(f"[jobpilot] could not move existing data ({e}); using {DATA_DIR}",
+              file=sys.stderr)
+
+
+_migrate_legacy_data()
 
 DEFAULT_MODEL = os.getenv("JOBPILOT_MODEL", "claude-opus-4-8")
 

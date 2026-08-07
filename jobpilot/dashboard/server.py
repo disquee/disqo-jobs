@@ -17,7 +17,15 @@ from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from ..config import CSV_PATH, PROFILE_DIR, ROOT, load_config
+from ..config import BACKUP_DIR, CSV_PATH, DATA_DIR, DB_PATH, PROFILE_DIR, ROOT, load_config
+from ..backup import (
+    backed_up_today,
+    days_since_backup,
+    last_backup,
+    list_backups,
+    restore_database,
+    run_backup,
+)
 from ..log_csv import append_application
 from ..models import (
     ActivityResult,
@@ -67,6 +75,10 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+    # A job search runs for months; back up on every launch so a lost or
+    # corrupted database costs at most a day.
+    if not backed_up_today():
+        threading.Thread(target=run_backup, daemon=True).start()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -381,6 +393,62 @@ def setup_targets(
     settings.onboarded = True
     save_settings(settings)
     return RedirectResponse("/setup?step=done", status_code=303)
+
+
+# ---- your data: where it lives, backups, restore --------------------------
+
+@app.get("/data", response_class=HTMLResponse)
+def data_page(request: Request, msg: str = "", err: str = ""):
+    activities = list_activities()
+    dates = sorted(a.date for a in activities)
+    return templates.TemplateResponse(
+        request, "data.html",
+        {
+            "data_dir": str(DATA_DIR),
+            "backup_dir": str(BACKUP_DIR),
+            "db_size_mb": round(DB_PATH.stat().st_size / 1_048_576, 1) if DB_PATH.exists() else 0,
+            "job_count": len(list_jobs()),
+            "activity_count": len(activities),
+            "first_activity": dates[0] if dates else None,
+            "last_activity": dates[-1] if dates else None,
+            "backups": list_backups()[:20],
+            "last_backup": last_backup(),
+            "days_since": days_since_backup(),
+            "msg": msg, "err": err,
+        },
+    )
+
+
+@app.post("/data/backup")
+def data_backup():
+    result = run_backup()
+    if result["error"]:
+        return RedirectResponse(f"/data?err=Backup failed: {result['error']}", status_code=303)
+    parts = ["database"] + [p.suffix.lstrip(".") for p in result["exports"]]
+    return RedirectResponse(
+        f"/data?msg=Backed up {', '.join(parts)}.", status_code=303
+    )
+
+
+@app.post("/data/restore")
+async def data_restore(file: UploadFile = File(None)):
+    if file is None or not file.filename:
+        return RedirectResponse("/data?err=Choose a backup file first.", status_code=303)
+    tmp = BACKUP_DIR / f"upload-{file.filename}"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    tmp.write_bytes(await file.read())
+    try:
+        restore_database(tmp)
+    except RuntimeError as e:
+        tmp.unlink(missing_ok=True)
+        return RedirectResponse(f"/data?err={e}", status_code=303)
+    finally:
+        tmp.unlink(missing_ok=True)
+    init_db()
+    return RedirectResponse(
+        "/data?msg=Restored. Your previous database was saved alongside the backups.",
+        status_code=303,
+    )
 
 
 # ---- add a posting by URL or pasted text ----------------------------------

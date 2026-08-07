@@ -164,6 +164,12 @@ input[type="text"]:focus, input[type="date"]:focus, select:focus {
 .formgrid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); }
 .formgrid .wide { grid-column:1 / -1; }
 .print-only { display:none; }
+.statgrid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+.statgrid > div { display:grid; gap:2px; }
+.statnum { font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; }
+.statlabel { font-size:0.8rem; color:var(--muted); }
+.prose-list { margin:10px 0; padding-left:20px; display:grid; gap:7px;
+  color:var(--ink-2); font-size:0.87rem; }
 
 /* Wizard + onboarding */
 .wizard { max-width:780px; margin:0 auto; }
@@ -236,6 +242,7 @@ body.is-searching .hitcount { display:block; }
       <a href="/" class="{{ 'is-current' if nav == 'queue' else '' }}">Review queue</a>
       <a href="/jobs/add" class="{{ 'is-current' if nav == 'add' else '' }}">Add a job</a>
       <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Work search log</a>
+      <a href="/data" class="{{ 'is-current' if nav == 'data' else '' }}">Your data</a>
     </nav>
     {% block toolbar %}{% endblock %}
     <button class="iconbtn" id="themeToggle" aria-label="Toggle light or dark theme">
