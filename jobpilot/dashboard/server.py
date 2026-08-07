@@ -660,6 +660,53 @@ def do_mark_applied(job_id: str):
     return RedirectResponse("/", status_code=303)
 
 
+def write_profile(name="", email="", phone="", location="", work_auth="",
+                  salary="", remote="", notice="", skills="", links="") -> None:
+    """Persist profile.yaml. Shared by the wizard and Settings so the two can't
+    drift — the wizard used to write a thinner version that dropped skills."""
+    existing = {}
+    pf = PROFILE_DIR / "profile.yaml"
+    if pf.exists():
+        try:
+            existing = yaml.safe_load(pf.read_text(encoding="utf-8")) or {}
+        except Exception:
+            existing = {}
+    parsed_skills = [s.strip() for s in (skills or "").replace("\n", ",").split(",") if s.strip()]
+    parsed_links = [s.strip() for s in (links or "").splitlines() if s.strip()]
+    data = {
+        "name": name.strip(), "email": email.strip(), "phone": phone.strip(),
+        "location": location.strip(),
+        # A step that doesn't ask for these must not erase them.
+        "skills": parsed_skills or existing.get("skills", []),
+        "links": parsed_links or existing.get("links", []),
+        "screening_defaults": {
+            "work_authorization": work_auth.strip(),
+            "salary_expectation": salary.strip(),
+            "remote_preference": remote.strip(),
+            "notice_period": notice.strip(),
+        },
+    }
+    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    pf.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    from ..config import load_profile
+
+    load_profile.cache_clear()
+
+
+def write_sources(searches: list[dict], greenhouse: list[str],
+                  lever: list[str] | None = None) -> None:
+    """Persist search targets. ``lever=None`` means leave Lever alone, which is
+    what the wizard needs — it doesn't ask about Lever and must not wipe it."""
+    cfg = config_current()
+    cfg["searches"] = searches or [{"query": "your target role", "location": "Remote"}]
+    ats = dict(cfg.get("ats") or {})
+    ats["greenhouse"] = greenhouse
+    if lever is not None:
+        ats["lever"] = lever
+    cfg["ats"] = ats
+    config_save(cfg)
+
+
 ROLE_SUGGESTIONS = [
     "technical writer", "content designer", "ux writer", "content strategist",
     "product manager", "program manager", "data analyst", "software engineer",
@@ -686,6 +733,9 @@ async def _first_run_gate(request: Request, call_next):
 @app.get("/setup", response_class=HTMLResponse)
 def setup(request: Request, step: str = "", msg: str = "", err: str = ""):
     settings = load_settings()
+    # Setup is the first run. Afterwards, changes belong in Settings.
+    if not step and settings.onboarded and profile_ready():
+        return RedirectResponse("/settings", status_code=303)
     return templates.TemplateResponse(
         request,
         "setup.html",
@@ -758,22 +808,8 @@ def setup_profile(
     location: str = Form(""), work_auth: str = Form(""), salary: str = Form(""),
     remote: str = Form(""), notice: str = Form(""),
 ):
-    data = {
-        "name": name.strip(),
-        "email": email.strip(),
-        "phone": phone.strip(),
-        "location": location.strip(),
-        "screening_defaults": {
-            "work_authorization": work_auth.strip(),
-            "salary_expectation": salary.strip(),
-            "remote_preference": remote.strip(),
-            "notice_period": notice.strip(),
-        },
-    }
-    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-    (PROFILE_DIR / "profile.yaml").write_text(
-        yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
-    )
+    write_profile(name=name, email=email, phone=phone, location=location,
+                  work_auth=work_auth, salary=salary, remote=remote, notice=notice)
     return RedirectResponse("/setup?step=targets", status_code=303)
 
 
@@ -784,15 +820,11 @@ def setup_targets(
 ):
     wanted = [r.strip() for r in roles if r.strip()]
     wanted += [r.strip() for r in custom_roles.split(",") if r.strip()]
-    cfg = load_config().copy()
-    cfg["searches"] = [{"query": r, "location": location or "Remote"} for r in wanted] or [
-        {"query": "your target role", "location": "Remote"}
-    ]
-    cfg["ats"] = {"greenhouse": [c for c in companies if c], "lever": []}
-    (ROOT / "config.yaml").write_text(
-        yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    write_sources(
+        [{"query": r, "location": location or "Remote"} for r in wanted],
+        [c for c in companies if c],
+        lever=None,          # the wizard never asks; Settings owns Lever
     )
-    load_config.cache_clear()
     settings = load_settings()
     settings.onboarded = True
     save_settings(settings)
@@ -836,13 +868,11 @@ def settings_sources(
         if q.strip():
             searches.append({"query": q.strip(),
                              "location": (location[i].strip() if i < len(location) else "") or "Remote"})
-    cfg = config_current()
-    cfg["searches"] = searches
-    cfg["ats"] = {
-        "greenhouse": [s.strip() for s in greenhouse.replace(",", "\n").splitlines() if s.strip()],
-        "lever": [s.strip() for s in lever.replace(",", "\n").splitlines() if s.strip()],
-    }
-    config_save(cfg)
+    write_sources(
+        searches,
+        [s.strip() for s in greenhouse.replace(",", "\n").splitlines() if s.strip()],
+        [s.strip() for s in lever.replace(",", "\n").splitlines() if s.strip()],
+    )
     return RedirectResponse("/settings?msg=Search targets saved.", status_code=303)
 
 
@@ -903,25 +933,9 @@ def settings_profile(
     remote: str = Form(""), notice: str = Form(""), skills: str = Form(""),
     links: str = Form(""),
 ):
-    data = {
-        "name": name.strip(), "email": email.strip(), "phone": phone.strip(),
-        "location": location.strip(),
-        "skills": [s.strip() for s in skills.replace("\n", ",").split(",") if s.strip()],
-        "links": [s.strip() for s in links.splitlines() if s.strip()],
-        "screening_defaults": {
-            "work_authorization": work_auth.strip(),
-            "salary_expectation": salary.strip(),
-            "remote_preference": remote.strip(),
-            "notice_period": notice.strip(),
-        },
-    }
-    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-    (PROFILE_DIR / "profile.yaml").write_text(
-        yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
-    load_config.cache_clear()
-    from ..config import load_profile
-
-    load_profile.cache_clear()
+    write_profile(name=name, email=email, phone=phone, location=location,
+                  work_auth=work_auth, salary=salary, remote=remote,
+                  notice=notice, skills=skills, links=links)
     return RedirectResponse("/settings?msg=Profile saved.", status_code=303)
 
 

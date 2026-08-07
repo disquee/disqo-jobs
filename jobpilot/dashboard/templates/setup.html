@@ -76,6 +76,10 @@
         never sent anywhere except the AI provider.
         <a href="/setup?step=welcome">Use copy-and-paste instead</a>.
       </p>
+      <p class="muted" style="margin-top:8px; font-size:0.82rem;">
+        Job-board keys for Adzuna and Jooble — which widen the search a lot and are
+        free — live in <a href="/settings">Settings</a> once you're set up.
+      </p>
     </div>
 
   {# ---------------------------------------------------------------- #}
@@ -117,7 +121,8 @@
     <div class="card">
       <h2 class="page-title">A few details about you</h2>
       <p class="muted" style="margin-top:8px;">Used to fill in application forms and answer
-        common screening questions. Leave anything blank if you'd rather not say.</p>
+        common screening questions. Leave anything blank if you'd rather not say —
+        you can add skills and links later in <a href="/settings">Settings</a>.</p>
       <form method="post" action="/setup/profile" style="margin-top:18px;">
         <div class="formgrid">
           <label class="field"><span>Full name</span><input type="text" name="name"></label>
@@ -142,8 +147,10 @@
   {% elif step == 'targets' %}
     <div class="card">
       <h2 class="page-title">What should we look for?</h2>
-      <p class="muted" style="margin-top:8px;">Pick the job titles you'd actually take. You
-        can change these later, and you can always paste a specific job link instead.</p>
+      <p class="muted" style="margin-top:8px;">Pick the job titles you'd actually take.
+        <a href="/settings">Settings</a> lets you give each one its own location, add Lever
+        companies, and tune how the search behaves — and you can always paste a specific
+        job link instead.</p>
       <form method="post" action="/setup/targets" style="margin-top:18px;">
         <h3>Job titles</h3>
         <div class="checkgrid">
@@ -180,12 +187,18 @@
         <a class="btn" href="/jobs/add">Paste a job link</a>
         <a class="btn secondary" href="/">Go to my jobs</a>
       </div>
-      <p class="muted" style="margin-top:18px; font-size:0.85rem;">
-        To search automatically across job boards, run <code>disqo-jobs discover --tailor</code>
-        in a terminal. Pasting links works without ever touching one.
-      </p>
-      <p class="muted" style="margin-top:10px; font-size:0.85rem;">
-        Change any of this later at <a href="/setup?step=welcome">Setup</a>.
+      <h3 style="margin-top:24px;">Worth doing next</h3>
+      <ul class="prose-list">
+        <li><a href="/settings">Add Adzuna and Jooble keys</a> — free, and they widen the
+          search well beyond company career pages.</li>
+        <li><a href="/settings">Give each role its own location</a>, add Lever companies,
+          and set the fit threshold.</li>
+        <li><a href="/settings">Add your skills and links</a> so screening answers have
+          more to draw on.</li>
+      </ul>
+      <p class="muted" style="margin-top:14px; font-size:0.85rem;">
+        Everything from this walkthrough lives in <a href="/settings">Settings</a> from
+        now on — this page is just the first run.
       </p>
     </div>
   {% endif %}
