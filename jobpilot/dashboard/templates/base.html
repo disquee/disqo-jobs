@@ -165,6 +165,43 @@ input[type="text"]:focus, input[type="date"]:focus, select:focus {
 .formgrid .wide { grid-column:1 / -1; }
 .print-only { display:none; }
 
+/* Wizard + onboarding */
+.wizard { max-width:780px; margin:0 auto; }
+.steps { display:flex; flex-wrap:wrap; gap:6px; list-style:none; margin:0 0 20px; padding:0;
+  counter-reset:step; }
+.steps li { counter-increment:step; font-size:0.78rem; font-weight:600; color:var(--muted);
+  padding:5px 11px; border-radius:999px; background:var(--surface-2);
+  border:1px solid var(--line-soft); }
+.steps li::before { content:counter(step) ". "; opacity:0.65; }
+.steps li.is-current { background:var(--accent-bg); color:var(--accent-ink);
+  border-color:transparent; }
+.note { padding:11px 14px; border-radius:var(--radius-sm); margin-bottom:16px;
+  font-size:0.88rem; }
+.note.tone-ok { background:var(--ok-bg); color:var(--ok); }
+.note.tone-warn { background:var(--warn-bg); color:var(--warn); }
+.choice { display:flex; gap:11px; align-items:flex-start; padding:14px;
+  border:1px solid var(--line); border-radius:var(--radius); margin-top:10px;
+  cursor:pointer; transition:border-color var(--dur) var(--ease),
+  background var(--dur) var(--ease); }
+.choice:hover { border-color:var(--accent); background:var(--surface-2); }
+.choice input { margin-top:3px; }
+.choice > span { display:grid; gap:4px; font-size:0.92rem; }
+.choice .muted { font-size:0.85rem; }
+.howto { margin:0; padding-left:20px; display:grid; gap:7px; color:var(--ink-2);
+  font-size:0.9rem; }
+.checkgrid { display:grid; gap:7px; margin-top:10px;
+  grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); }
+.check { display:flex; gap:8px; align-items:center; font-size:0.88rem;
+  padding:7px 10px; border:1px solid var(--line); border-radius:var(--radius-sm);
+  cursor:pointer; }
+.check:hover { background:var(--surface-2); border-color:var(--accent); }
+.divider { display:flex; align-items:center; gap:12px; margin:22px 0;
+  color:var(--muted); font-size:0.8rem; text-transform:uppercase;
+  letter-spacing:0.05em; }
+.divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--line); }
+input[type="file"] { font-size:0.86rem; padding:8px; background:var(--bg);
+  border:1px dashed var(--line); border-radius:var(--radius-sm); width:100%; }
+
 .empty { padding:36px 18px; text-align:center; color:var(--muted); }
 .hitcount { display:none; font-size:0.84rem; color:var(--muted); margin-bottom:12px; }
 body.is-searching .hitcount { display:block; }
@@ -197,7 +234,8 @@ body.is-searching .hitcount { display:block; }
     <span class="brand"><span class="brand-name">🛩️ jobpilot</span></span>
     <nav class="navlinks">
       <a href="/" class="{{ 'is-current' if nav == 'queue' else '' }}">Review queue</a>
-      <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Applied</a>
+      <a href="/jobs/add" class="{{ 'is-current' if nav == 'add' else '' }}">Add a job</a>
+      <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Work search log</a>
     </nav>
     {% block toolbar %}{% endblock %}
     <button class="iconbtn" id="themeToggle" aria-label="Toggle light or dark theme">

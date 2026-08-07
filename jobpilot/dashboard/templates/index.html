@@ -24,7 +24,11 @@
 {% if not jobs %}
   <div class="tablecard"><div class="empty">
     <p style="font-weight:600; color:var(--ink);">Nothing in the queue</p>
-    <p style="margin-top:5px;">Run <code>jobpilot discover --tailor</code> to pull and score jobs.</p>
+    <p style="margin-top:5px;">Paste a link to a job you found and jobpilot will take it
+      from there.</p>
+    <p style="margin-top:14px;"><a class="btn" href="/jobs/add">Paste a job link</a></p>
+    <p class="muted" style="margin-top:14px; font-size:0.82rem;">Or search job boards
+      automatically with <code>jobpilot discover --tailor</code> in a terminal.</p>
   </div></div>
 {% else %}
 <div class="tablecard">

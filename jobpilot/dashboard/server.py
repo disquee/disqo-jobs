@@ -12,14 +12,16 @@ import threading
 from datetime import date, timedelta
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+import yaml
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from ..config import CSV_PATH, load_config
+from ..config import CSV_PATH, PROFILE_DIR, ROOT, load_config
 from ..log_csv import append_application
 from ..models import (
     ActivityResult,
+    Job,
     ActivityType,
     Application,
     PrepStatus,
@@ -28,11 +30,24 @@ from ..models import (
     WorkSearchActivity,
 )
 from ..worklog import to_csv, to_xlsx, weekly_counts
+from ..ingest import fetch_posting, resume_text
+from ..settings import (
+    check_api_key,
+    has_api_key,
+    load_settings,
+    needs_setup,
+    profile_ready,
+    save_settings,
+    set_api_key,
+)
+from ..pipeline import fit as fit_mod
+from ..pipeline import tailor as tailor_mod
 from ..pipeline.prep import ensure_job_prep, prep_html_path
 from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, render_pdf, resume_path
 from ..store import (
     activity_for_job,
+    upsert_job,
     delete_activity,
     get_activity,
     get_application,
@@ -67,7 +82,8 @@ def index(request: Request):
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"jobs": jobs, "threshold": threshold, "PrepStatus": PrepStatus},
+        {"jobs": jobs, "threshold": threshold, "PrepStatus": PrepStatus,
+         "settings": load_settings()},
     )
 
 
@@ -91,6 +107,7 @@ def job_detail(request: Request, job_id: str):
             "screening_json": screening_json,
             "PrepStatus": PrepStatus,
             "prep_exists": prep_html_path(job).exists(),
+            "settings": load_settings(),
         },
     )
 
@@ -138,8 +155,11 @@ def set_prep_status(job_id: str, value: str = Form("started"), back: str = Form(
 @app.post("/job/{job_id}/tailor")
 def do_tailor(job_id: str):
     job = get_job(job_id)
-    if job:
-        tailor_job_full(job)
+    if not job:
+        return RedirectResponse("/", status_code=303)
+    if load_settings().is_manual:
+        return RedirectResponse(f"/job/{job_id}/manual/tailor", status_code=303)
+    tailor_job_full(job)
     return RedirectResponse(f"/job/{job_id}", status_code=303)
 
 
@@ -222,6 +242,251 @@ def do_mark_applied(job_id: str):
                 job_id=job.id,
             ))
     return RedirectResponse("/", status_code=303)
+
+
+ROLE_SUGGESTIONS = [
+    "technical writer", "content designer", "ux writer", "content strategist",
+    "product manager", "program manager", "data analyst", "software engineer",
+    "customer success manager", "marketing manager", "recruiter", "designer",
+]
+
+COMPANY_SUGGESTIONS = [
+    ("stripe", "Stripe"), ("gitlab", "GitLab"), ("datadog", "Datadog"),
+    ("figma", "Figma"), ("asana", "Asana"), ("discord", "Discord"),
+    ("mongodb", "MongoDB"), ("cloudflare", "Cloudflare"), ("twilio", "Twilio"),
+    ("webflow", "Webflow"), ("brex", "Brex"), ("gusto", "Gusto"),
+]
+
+
+@app.middleware("http")
+async def _first_run_gate(request: Request, call_next):
+    """Send first-time users to the wizard instead of an empty dashboard."""
+    path = request.url.path
+    if not path.startswith(("/setup", "/log/export")) and needs_setup():
+        return RedirectResponse("/setup", status_code=303)
+    return await call_next(request)
+
+
+@app.get("/setup", response_class=HTMLResponse)
+def setup(request: Request, step: str = "", msg: str = "", err: str = ""):
+    settings = load_settings()
+    return templates.TemplateResponse(
+        request,
+        "setup.html",
+        {
+            "settings": settings,
+            "step": step or ("welcome" if not settings.onboarded else "done"),
+            "has_key": has_api_key(),
+            "profile_ready": profile_ready(),
+            "resume_text": (PROFILE_DIR / "resume_master.md").read_text(encoding="utf-8")
+            if (PROFILE_DIR / "resume_master.md").exists() else "",
+            "roles": ROLE_SUGGESTIONS,
+            "companies": COMPANY_SUGGESTIONS,
+            "msg": msg,
+            "err": err,
+        },
+    )
+
+
+@app.post("/setup/mode")
+def setup_mode(llm_mode: str = Form("api")):
+    settings = load_settings()
+    settings.llm_mode = "manual" if llm_mode == "manual" else "api"
+    save_settings(settings)
+    nxt = "key" if settings.llm_mode == "api" else "resume"
+    return RedirectResponse(f"/setup?step={nxt}", status_code=303)
+
+
+@app.post("/setup/key")
+def setup_key(api_key: str = Form("")):
+    if api_key.strip():
+        set_api_key(api_key)
+    ok, message = check_api_key()
+    if ok:
+        return RedirectResponse(f"/setup?step=resume&msg={message}", status_code=303)
+    return RedirectResponse(f"/setup?step=key&err={message}", status_code=303)
+
+
+@app.post("/setup/resume")
+async def setup_resume(
+    file: UploadFile = File(None), pasted: str = Form(""), text: str = Form("")
+):
+    """Accept an uploaded resume, pasted text, or edits to the extracted text."""
+    content = ""
+    if file is not None and file.filename:
+        try:
+            content = resume_text(file.filename, await file.read())
+        except RuntimeError as e:
+            return RedirectResponse(f"/setup?step=resume&err={e}", status_code=303)
+    elif pasted.strip():
+        content = pasted.strip()
+    elif text.strip():
+        content = text.strip()
+
+    if not content:
+        return RedirectResponse(
+            "/setup?step=resume&err=Upload a file or paste your resume text.",
+            status_code=303,
+        )
+    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    (PROFILE_DIR / "resume_master.md").write_text(content, encoding="utf-8")
+    return RedirectResponse(
+        "/setup?step=profile&msg=Resume saved. Edit it any time in Settings.",
+        status_code=303,
+    )
+
+
+@app.post("/setup/profile")
+def setup_profile(
+    name: str = Form(""), email: str = Form(""), phone: str = Form(""),
+    location: str = Form(""), work_auth: str = Form(""), salary: str = Form(""),
+    remote: str = Form(""), notice: str = Form(""),
+):
+    data = {
+        "name": name.strip(),
+        "email": email.strip(),
+        "phone": phone.strip(),
+        "location": location.strip(),
+        "screening_defaults": {
+            "work_authorization": work_auth.strip(),
+            "salary_expectation": salary.strip(),
+            "remote_preference": remote.strip(),
+            "notice_period": notice.strip(),
+        },
+    }
+    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    (PROFILE_DIR / "profile.yaml").write_text(
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    return RedirectResponse("/setup?step=targets", status_code=303)
+
+
+@app.post("/setup/targets")
+def setup_targets(
+    roles: list[str] = Form([]), custom_roles: str = Form(""),
+    companies: list[str] = Form([]), location: str = Form("Remote"),
+):
+    wanted = [r.strip() for r in roles if r.strip()]
+    wanted += [r.strip() for r in custom_roles.split(",") if r.strip()]
+    cfg = load_config().copy()
+    cfg["searches"] = [{"query": r, "location": location or "Remote"} for r in wanted] or [
+        {"query": "your target role", "location": "Remote"}
+    ]
+    cfg["ats"] = {"greenhouse": [c for c in companies if c], "lever": []}
+    (ROOT / "config.yaml").write_text(
+        yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    load_config.cache_clear()
+    settings = load_settings()
+    settings.onboarded = True
+    save_settings(settings)
+    return RedirectResponse("/setup?step=done", status_code=303)
+
+
+# ---- add a posting by URL or pasted text ----------------------------------
+
+@app.get("/jobs/add", response_class=HTMLResponse)
+def add_job_form(request: Request, err: str = "", url: str = "",
+                 title: str = "", company: str = "", description: str = ""):
+    return templates.TemplateResponse(
+        request, "add_job.html",
+        {"err": err, "url": url, "title": title, "company": company,
+         "description": description, "settings": load_settings()},
+    )
+
+
+@app.post("/jobs/fetch")
+def fetch_job(url: str = Form("")):
+    """Pull a posting from a URL so the user only has to confirm it."""
+    if not url.strip():
+        return RedirectResponse("/jobs/add?err=Paste a link first.", status_code=303)
+    try:
+        found = fetch_posting(url)
+    except RuntimeError as e:
+        return RedirectResponse(
+            f"/jobs/add?err={e}&url={url}", status_code=303
+        )
+    from urllib.parse import urlencode
+
+    return RedirectResponse(
+        "/jobs/add?" + urlencode({
+            "url": found["url"], "title": found["title"],
+            "company": found["company"], "description": found["description"],
+        }),
+        status_code=303,
+    )
+
+
+@app.post("/jobs/add")
+def add_job(
+    title: str = Form(""), company: str = Form(""), location: str = Form(""),
+    url: str = Form(""), description: str = Form(""),
+):
+    if not title.strip() or not description.strip():
+        return RedirectResponse(
+            "/jobs/add?err=A title and the posting text are both required.",
+            status_code=303,
+        )
+    job = Job(
+        source="manual", title=title.strip(), company=company.strip() or "Unknown",
+        location=location.strip(), description=description.strip(),
+        apply_url=url.strip(), status=Status.discovered,
+    ).ensure_id()
+    upsert_job(job)
+    save_job(job)
+    return RedirectResponse(f"/job/{job.id}", status_code=303)
+
+
+# ---- manual (no API key) LLM steps ---------------------------------------
+
+@app.get("/job/{job_id}/manual/{kind}", response_class=HTMLResponse)
+def manual_prompt(request: Request, job_id: str, kind: str, err: str = ""):
+    job = get_job(job_id)
+    if not job or kind not in ("fit", "tailor"):
+        return RedirectResponse("/", status_code=303)
+    prompt = (
+        fit_mod.build_prompt(job) if kind == "fit" else tailor_mod.build_manual_prompt(job)
+    )
+    return templates.TemplateResponse(
+        request, "manual.html",
+        {"job": job, "kind": kind, "prompt": prompt, "err": err},
+    )
+
+
+@app.post("/job/{job_id}/manual/{kind}")
+def manual_submit(job_id: str, kind: str, response: str = Form("")):
+    job = get_job(job_id)
+    if not job:
+        return RedirectResponse("/", status_code=303)
+    if not response.strip():
+        return RedirectResponse(
+            f"/job/{job_id}/manual/{kind}?err=Paste the assistant's reply first.",
+            status_code=303,
+        )
+    try:
+        if kind == "fit":
+            from ..llm import _extract_json
+
+            fit_mod.apply_result(job, _extract_json(response))
+            job.status = Status.scored
+            save_job(job)
+        else:
+            application = tailor_mod.parse_manual_response(job, response)
+            application.resume_pdf_path = str(
+                render_pdf(application.tailored_resume_md, resume_path(job))
+            )
+            application.cover_pdf_path = str(
+                render_pdf(application.cover_letter_md, cover_path(job))
+            )
+            save_application(application)
+            job.status = Status.tailored
+            save_job(job)
+    except Exception as e:
+        return RedirectResponse(
+            f"/job/{job_id}/manual/{kind}?err=Couldn't read that reply: {str(e)[:140]}",
+            status_code=303,
+        )
+    return RedirectResponse(f"/job/{job_id}", status_code=303)
 
 
 def _range(date_from: str, date_to: str) -> tuple[str, str]:

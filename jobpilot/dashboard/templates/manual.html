@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Score' if kind == 'fit' else 'Tailor' }} · {{ job.title }}{% endblock %}
+{% block content %}
+<p><a href="/job/{{ job.id }}" class="muted">← Back to {{ job.title }}</a></p>
+
+<div class="wizard">
+  {% if err %}<div class="note tone-warn">{{ err }}</div>{% endif %}
+
+  <div class="card">
+    <h2 class="page-title">{{ 'Score this job' if kind == 'fit' else 'Write the application' }}</h2>
+    <p class="muted" style="margin-top:8px;">
+      You're set up without an API key, so this takes three steps. It's the same work
+      the automatic mode does — you're just carrying the message.
+    </p>
+
+    <ol class="howto" style="margin-top:16px;">
+      <li><strong>Copy</strong> the instructions below.</li>
+      <li><strong>Paste them</strong> into
+        <a href="https://claude.ai/new" target="_blank" rel="noopener">Claude</a> or
+        <a href="https://chatgpt.com/" target="_blank" rel="noopener">ChatGPT</a> and send.</li>
+      <li><strong>Copy the whole reply</strong> and paste it back here.</li>
+    </ol>
+
+    <div class="row" style="margin-top:14px;">
+      <button type="button" id="copyBtn">Copy instructions</button>
+      <span class="muted" id="copyNote" style="font-size:0.84rem;"></span>
+    </div>
+    <textarea id="prompt" readonly style="min-height:200px; margin-top:12px;">{{ prompt }}</textarea>
+  </div>
+
+  <div class="card">
+    <h3>Paste the reply here</h3>
+    <form method="post" action="/job/{{ job.id }}/manual/{{ kind }}">
+      <textarea name="response" style="min-height:220px;"
+        placeholder="Paste everything the assistant wrote, including the curly braces."
+        required></textarea>
+      <div class="row" style="margin-top:12px;">
+        <button type="submit">Save it</button>
+        <span class="muted" style="font-size:0.82rem;">
+          If it complains the reply can't be read, copy the assistant's full answer again —
+          it needs the JSON part.</span>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("copyBtn").addEventListener("click", function () {
+  var ta = document.getElementById("prompt");
+  var note = document.getElementById("copyNote");
+  ta.select(); ta.setSelectionRange(0, ta.value.length);
+  function done() { note.textContent = "Copied — now paste it into the chat."; }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(ta.value).then(done, function () {
+      document.execCommand("copy"); done();
+    });
+  } else { document.execCommand("copy"); done(); }
+});
+</script>
+{% endblock %}

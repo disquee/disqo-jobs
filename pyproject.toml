@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn>=0.29",
     "python-multipart>=0.0.9",
     "playwright>=1.44",
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]

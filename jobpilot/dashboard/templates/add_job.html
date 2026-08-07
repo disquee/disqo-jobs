@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Add a job · jobpilot{% endblock %}
+{% block content %}
+<p><a href="/" class="muted">← Back to my jobs</a></p>
+
+<div class="wizard">
+  {% if err %}<div class="note tone-warn">{{ err }}</div>{% endif %}
+
+  <div class="card">
+    <h2 class="page-title">Paste a job link</h2>
+    <p class="muted" style="margin-top:8px;">Found something you want to apply to? Paste the
+      link and we'll pull the posting in for you.</p>
+    <form method="post" action="/jobs/fetch" style="margin-top:14px;">
+      <div class="row" style="gap:10px;">
+        <input type="text" name="url" value="{{ url }}" style="flex:1 1 340px;"
+               placeholder="https://boards.greenhouse.io/…" autofocus>
+        <button type="submit">Fetch posting</button>
+      </div>
+    </form>
+    <p class="muted" style="margin-top:10px; font-size:0.82rem;">
+      Some job boards block automated fetching. If that happens, open the posting,
+      select the description, and paste it into the form below instead.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>{{ 'Check this looks right' if description else 'Or enter it yourself' }}</h3>
+    <form method="post" action="/jobs/add" style="margin-top:12px;">
+      <div class="formgrid">
+        <label class="field"><span>Job title *</span>
+          <input type="text" name="title" value="{{ title }}" required></label>
+        <label class="field"><span>Company</span>
+          <input type="text" name="company" value="{{ company }}"></label>
+        <label class="field"><span>Location</span>
+          <input type="text" name="location" placeholder="Remote"></label>
+        <label class="field"><span>Link to apply</span>
+          <input type="text" name="url" value="{{ url }}"></label>
+      </div>
+      <label class="field wide" style="margin-top:14px;">
+        <span>Posting text *</span>
+        <textarea name="description" style="min-height:260px;"
+          placeholder="Paste the full job description here.">{{ description }}</textarea>
+      </label>
+      <div class="row" style="margin-top:14px;">
+        <button type="submit">Add this job</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

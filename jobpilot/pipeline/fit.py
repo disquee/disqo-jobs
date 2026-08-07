@@ -42,16 +42,23 @@ matches and gaps>"}}
 """
 
 
-def score_job(job: Job) -> Job:
-    profile_yaml = yaml.safe_dump(load_profile(), sort_keys=False)
-    prompt = PROMPT.format(
-        profile=profile_yaml,
+def build_prompt(job: Job) -> str:
+    """The full fit prompt. Shared by the API path and manual paste mode."""
+    return PROMPT.format(
+        profile=yaml.safe_dump(load_profile(), sort_keys=False),
         title=sanitize_untrusted(job.title, 300),
         company=sanitize_untrusted(job.company, 200),
         location=sanitize_untrusted(job.location, 200),
         description=sanitize_untrusted(job.description),
     )
-    result = complete_json(prompt, system=SYSTEM, max_tokens=500)
+
+
+def apply_result(job: Job, result: dict) -> Job:
     job.fit_score = int(max(0, min(100, result.get("score", 0))))
     job.fit_rationale = str(result.get("rationale", "")).strip()
     return job
+
+
+def score_job(job: Job) -> Job:
+    result = complete_json(build_prompt(job), system=SYSTEM, max_tokens=500)
+    return apply_result(job, result)
