@@ -200,18 +200,47 @@ def spreadsheet_rows(filename: str, data: bytes) -> list[list[str]]:
 
 # ------------------------------------------------------- interview loops ---
 
-# "Cross-Functional Collaboration w/ Dana Lee - Manager, Support"
-# "Interview with Sam Ortiz, Director of Support"
-# "Sam Ortiz (Director of Support)"
+# Recruiter emails name a loop in a handful of shapes, and often put several
+# people on one line:
+#   "Cross-Functional Collaboration w/ Dana Lee - Manager, Support"
+#   "AI & Ops w/ Sam Ortiz - Manager, Learning, Alex Kim - Content Specialist"
+#   "Interview with Sam Ortiz, Director of Support"
+#   "Sam Ortiz (Director of Support)"
+#
+# Case matters here: capitalisation is most of what separates a name from a
+# sentence, so these are deliberately NOT case-insensitive.
 _NAME = r"[A-Z][\w.'’-]+(?:\s+[A-Z][\w.'’-]+){1,2}"
-_PATTERNS = [
-    re.compile(rf"(?P<focus>[^\n|]+?)\s+(?:w/|with)\s+(?P<name>{_NAME})\s*[-–—:,]\s*(?P<role>[^\n|]+)", re.I),
-    re.compile(rf"(?:w/|with)\s+(?P<name>{_NAME})\s*[-–—:,]\s*(?P<role>[^\n|]+)", re.I),
-    re.compile(rf"(?P<name>{_NAME})\s*\(\s*(?P<role>[^)\n]+)\)"),
-    re.compile(rf"(?P<name>{_NAME})\s*[-–—]\s*(?P<role>[A-Z][^\n|]{{3,60}})"),
-]
+
+# One person plus their title, where the title stops at the next person.
+_PERSON = re.compile(
+    rf"(?P<name>{_NAME})\s*[-–—:]\s*(?P<role>.+?)"
+    rf"(?=\s*,\s*{_NAME}\s*[-–—:]|$)"
+)
+_PAREN = re.compile(rf"(?P<name>{_NAME})\s*\(\s*(?P<role>[^)\n]+)\)")
+_LEAD = re.compile(r"^(?P<focus>[^\n|]{3,80}?)\s+(?:w/|with)\s+(?P<rest>.+)$")
 
 _LINKEDIN = re.compile(r"https?://(?:[\w-]+\.)?linkedin\.com/in/[\w%-]+", re.I)
+
+# Words that never appear in a person's name; guards against prose that happens
+# to be capitalised.
+_NOT_A_NAME = {
+    "the", "and", "your", "you", "our", "we", "with", "for", "this", "that",
+    "how", "what", "interview", "interviews", "team", "teams", "role", "manager",
+    "each", "overall", "best", "hi", "hello", "thanks", "please",
+}
+
+
+def _people_from_segment(segment: str, focus: str) -> list[dict]:
+    """Every "Name - Title" pair in one line, which may hold several people."""
+    out = []
+    for m in _PERSON.finditer(segment):
+        name = " ".join(m.group("name").split())
+        if any(w.lower() in _NOT_A_NAME for w in name.split()):
+            continue
+        role = m.group("role").strip(" .;,–—-")
+        out.append({"name": name, "role": role[:120], "focus": focus[:160],
+                    "linkedin": "", "when": ""})
+    return out
 
 
 def parse_interviewers(text: str) -> list[dict]:
@@ -226,24 +255,28 @@ def parse_interviewers(text: str) -> list[dict]:
 
     for raw_line in (text or "").splitlines():
         line = raw_line.strip(" -•\t")
-        if not line or len(line) > 240:
+        if not line or len(line) > 400:
             continue
-        for pattern in _PATTERNS:
-            m = pattern.search(line)
-            if not m:
+
+        lead = _LEAD.match(line)
+        if lead:
+            people = _people_from_segment(lead.group("rest"), lead.group("focus"))
+        else:
+            people = _people_from_segment(line, "")
+            if not people:
+                people = [{"name": " ".join(m.group("name").split()),
+                           "role": m.group("role").strip()[:120], "focus": "",
+                           "linkedin": "", "when": ""}
+                          for m in _PAREN.finditer(line)
+                          if not any(w.lower() in _NOT_A_NAME
+                                     for w in m.group("name").split())]
+
+        for person in people:
+            key = person["name"].lower()
+            if key in seen:
                 continue
-            name = " ".join(m.group("name").split())
-            if name.lower() in seen:
-                break
-            role = m.groupdict().get("role", "").strip(" .;,")
-            focus = (m.groupdict().get("focus") or "").strip(" .;,-–—")
-            # Guard against sentences that merely start with two capitalised words
-            if len(name.split()) > 3 or any(w in name.lower() for w in ("the", "and", "your")):
-                break
-            seen.add(name.lower())
-            found.append({"name": name, "role": role[:120], "focus": focus[:160],
-                          "linkedin": "", "when": ""})
-            break
+            seen.add(key)
+            found.append(person)
 
     for i, person in enumerate(found):
         if i < len(links):
@@ -253,14 +286,52 @@ def parse_interviewers(text: str) -> list[dict]:
     return found
 
 
+_LOOKING_FOR = re.compile(
+    r"(looking for|evidence that you|we'?d love|qualifications|expect(?:ing)? (?:you|to)|"
+    r"assess|evaluate|competenc)", re.I)
+
+
+def _clean_item(line: str) -> str:
+    return re.sub(r"^[-•*●]\s+|^\d+[.)]\s+", "", line).strip(" .;")
+
+
 def parse_competencies(text: str) -> list[str]:
-    """Bullet lines from the 'we're looking for evidence that you can…' section."""
+    """The "we're looking for evidence that you can…" list.
+
+    Handles both bulleted lists and the plain-sentence-per-line form recruiters
+    often send, which has no bullets to key off at all.
+    """
+    lines = (text or "").splitlines()
     out: list[str] = []
-    for raw in (text or "").splitlines():
+
+    # 1. Anything explicitly bulleted or numbered.
+    for raw in lines:
         line = raw.strip()
-        if not re.match(r"^[-•*•]\s+|^\d+[.)]\s+", line):
-            continue
-        line = re.sub(r"^[-•*•]\s+|^\d+[.)]\s+", "", line).strip(" .")
-        if 12 <= len(line) <= 180:
-            out.append(line)
-    return out[:12]
+        if re.match(r"^[-•*●]\s+|^\d+[.)]\s+", line):
+            item = _clean_item(line)
+            if 12 <= len(item) <= 200:
+                out.append(item)
+
+    # 2. Otherwise, the run of lines after a "looking for…:" lead-in.
+    if not out:
+        for i, raw in enumerate(lines):
+            if not (raw.strip().endswith(":") and _LOOKING_FOR.search(raw)):
+                continue
+            for follow in lines[i + 1:]:
+                item = _clean_item(follow.strip())
+                if not item:
+                    if out:          # blank line ends the list, once started
+                        break
+                    continue         # tolerate a blank between lead-in and list
+                if not (12 <= len(item) <= 200) or item[0].islower():
+                    break
+                out.append(item)
+            if out:
+                break
+
+    seen, unique = set(), []
+    for item in out:
+        if item.lower() not in seen:
+            seen.add(item.lower())
+            unique.append(item)
+    return unique[:12]
