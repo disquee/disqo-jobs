@@ -54,8 +54,12 @@
     {% for job in jobs %}
       <tr data-search="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ job.location)|lower }}">
         <td class="fit {{ 'hi' if (job.fit_score or 0) >= threshold else 'lo' }}"
-            data-key="{{ job.fit_score if job.fit_score is not none else '' }}">
-          {{ job.fit_score if job.fit_score is not none else '—' }}
+            data-key="{{ job.fit_score if job.fit_score is not none else '' }}"
+            title="{{ ('Fit ' ~ job.fit_score ~ ' of 100') if job.fit_score is not none else 'Not scored yet' }}">
+          <span class="fitnum">{{ job.fit_score if job.fit_score is not none else '—' }}</span>
+          {% if job.fit_score is not none %}
+            <span class="fitbar"><span style="width:{{ job.fit_score }}%"></span></span>
+          {% endif %}
         </td>
         {% set d = job_date(job) %}
         <td class="jobdate {{ 'is-stale' if d.stale }}" data-key="{{ d.sort }}"
@@ -66,20 +70,19 @@
         {% set label, tone = display_status(job.status, job.id in interviewing) %}
         {% set rank = {'Saved': 1, 'Ready to apply': 2, 'Applying': 3, 'Applied': 4,
                        'Interviewing': 5, 'Not pursuing': 0} %}
-        <td data-key="{{ rank.get(label, 0) }}"><span class="pill {{ 'tone-' ~ tone if tone }}">
-          {{ '✓ ' if tone == 'ok' }}{{ label }}</span></td>
+        <td data-key="{{ rank.get(label, 0) }}">
+          <span class="tag-plain {{ 'is-done' if tone == 'ok' }}{{ ' is-marked' if tone == 'accent' }}">
+            {{ '✓ ' if tone == 'ok' }}{{ label }}</span></td>
         <td data-key="{{ {'none': 0, 'started': 1, 'complete': 2}[job.prep_status.value] }}">
           {% if job.prep_status == PrepStatus.complete %}
-            <a href="/job/{{ job.id }}/prep" class="pill tone-ok">✓ prep ready</a>
+            <a href="/job/{{ job.id }}/prep" class="tag-plain is-done">✓ Prep ready</a>
           {% elif job.prep_status == PrepStatus.started %}
-            <a href="/job/{{ job.id }}/prep" class="pill tone-accent">prep started</a>
+            <a href="/job/{{ job.id }}/prep" class="tag-plain is-marked">Prep started</a>
           {% else %}
-            <form class="inline" method="post" action="/job/{{ job.id }}/prep">
-              <button class="secondary tiny" type="submit">Create prep</button>
-            </form>
+            <a href="/job/{{ job.id }}/prep/new" class="tag-plain">Set up prep</a>
           {% endif %}
         </td>
-        <td><a href="/job/{{ job.id }}">Review →</a></td>
+        <td><a class="tag-plain" href="/job/{{ job.id }}">Review →</a></td>
       </tr>
     {% endfor %}
     </tbody>

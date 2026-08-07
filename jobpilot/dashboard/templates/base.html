@@ -93,7 +93,8 @@ code { font-family:var(--mono); font-size:0.88em; background:var(--surface-2);
 .topbar-inner { max-width:1180px; margin:0 auto; padding:10px 20px;
   display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
 .brand { display:flex; align-items:baseline; gap:10px; margin-right:auto; }
-.brand-name { font-size:0.95rem; font-weight:650; white-space:nowrap; }
+.brand-name { font-size:0.95rem; letter-spacing:0.06em; white-space:nowrap;
+  text-transform:uppercase; }
 .navlinks { display:flex; gap:2px; }
 .navlinks a { padding:5px 10px; border-radius:var(--radius-sm); font-size:0.86rem;
   font-weight:550; color:var(--ink-2); }
@@ -350,10 +351,42 @@ button:hover, .btn:hover { filter:none; background:var(--ink-2); }
   color:var(--ink); }
 .pill.tone-accent { background:var(--brand-amber); color:#0B0B0B; border-color:var(--line); }
 .progress > span { background:var(--brand-amber); }
-.fit.hi { color:var(--ink); box-shadow:inset 0 -0.4em 0 var(--brand-amber); }
+
 :focus-visible { outline:2px solid var(--brand-amber); outline-offset:2px; }
 .pill { border:1px solid var(--line-soft); }
 .note.tone-warn, .callout.tone-warn, .weekcount.tone-warn { background:var(--accent-bg); }
+
+
+/* One treatment for every cell-level label and action, so a status, a prep
+   state and a link don't read as three different kinds of thing. */
+.tag-plain {
+  display:inline-block; padding:3px 9px; font-size:0.76rem; font-weight:500;
+  line-height:1.35; white-space:nowrap; border-radius:var(--radius-sm);
+  border:1px solid var(--line-soft); background:var(--surface);
+  color:var(--ink-2); text-decoration:none;
+  transition:border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+a.tag-plain:hover { border-color:var(--line); background:var(--surface-2);
+  color:var(--ink); text-decoration:none; }
+/* Amber marks state without swallowing the text — a rule, not a fill. */
+.tag-plain.is-marked { box-shadow:inset 0 -3px 0 var(--brand-amber); }
+.tag-plain.is-done { border-color:var(--ok); color:var(--ok); }
+
+/* Fit: the bar is the score, so 82 is 82% of the cell. */
+td.fit { position:relative; padding-bottom:14px; }
+.fitnum { font-family:var(--mono); font-weight:500; font-variant-numeric:tabular-nums; }
+.fitbar { position:absolute; left:14px; right:14px; bottom:8px; height:3px;
+  background:var(--line-soft); border-radius:2px; overflow:hidden; }
+.fitbar > span { display:block; height:100%; background:var(--brand-amber); }
+td.fit.lo .fitbar > span { background:var(--muted); }
+
+/* Header stays put while a long table scrolls. */
+.tablecard .scroll { overflow:visible; }
+thead th { position:sticky; top:49px; z-index:10; }
+@media (max-width: 900px) {
+  .tablecard .scroll { overflow-x:auto; }
+  thead th { position:static; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration:1ms !important; }
@@ -380,7 +413,7 @@ button:hover, .btn:hover { filter:none; background:var(--ink-2); }
 <body>
 <header class="topbar">
   <div class="topbar-inner">
-    <span class="brand"><span class="brand-name">🛩️ disqo jobs</span></span>
+    <span class="brand"><span class="brand-name">DISQO JOBS</span></span>
     <nav class="navlinks">
       <a href="/" class="{{ 'is-current' if nav == 'home' else '' }}">Today</a>
       <a href="/jobs" class="{{ 'is-current' if nav == 'queue' else '' }}">My jobs</a>
