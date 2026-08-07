@@ -33,26 +33,34 @@
 {% else %}
 <div class="tablecard">
   <div class="scroll">
-  <table id="jobs">
+  <table id="jobs" class="sortable">
     <thead>
       <tr>
-        <th>Fit</th><th>Title</th><th>Company</th><th>Location</th>
-        <th>Status</th><th>Prep</th><th></th>
+        <th data-sort="num">Fit</th>
+        <th data-sort="text">Title</th>
+        <th data-sort="text">Company</th>
+        <th data-sort="text">Location</th>
+        <th data-sort="num">Status</th>
+        <th data-sort="num">Prep</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
     {% for job in jobs %}
       <tr data-search="{{ (job.title ~ ' ' ~ job.company ~ ' ' ~ job.location)|lower }}">
-        <td class="fit {{ 'hi' if (job.fit_score or 0) >= threshold else 'lo' }}">
+        <td class="fit {{ 'hi' if (job.fit_score or 0) >= threshold else 'lo' }}"
+            data-key="{{ job.fit_score if job.fit_score is not none else '' }}">
           {{ job.fit_score if job.fit_score is not none else '—' }}
         </td>
         <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a></td>
         <td>{{ job.company }}</td>
         <td class="muted">{{ job.location or '—' }}</td>
         {% set label, tone = display_status(job.status, job.id in interviewing) %}
-        <td><span class="pill {{ 'tone-' ~ tone if tone }}">
+        {% set rank = {'Saved': 1, 'Ready to apply': 2, 'Applying': 3, 'Applied': 4,
+                       'Interviewing': 5, 'Not pursuing': 0} %}
+        <td data-key="{{ rank.get(label, 0) }}"><span class="pill {{ 'tone-' ~ tone if tone }}">
           {{ '✓ ' if tone == 'ok' }}{{ label }}</span></td>
-        <td>
+        <td data-key="{{ {'none': 0, 'started': 1, 'complete': 2}[job.prep_status.value] }}">
           {% if job.prep_status == PrepStatus.complete %}
             <a href="/job/{{ job.id }}/prep" class="pill tone-ok">✓ prep ready</a>
           {% elif job.prep_status == PrepStatus.started %}

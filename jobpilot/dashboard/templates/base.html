@@ -114,6 +114,15 @@ tbody tr:last-child td { border-bottom:0; }
 tbody tr { transition:background var(--dur) var(--ease); }
 tbody tr:hover { background:var(--surface-2); }
 tr.is-hidden { display:none; }
+
+/* Sortable column headers */
+th[data-sort] { cursor:pointer; user-select:none; white-space:nowrap;
+  transition:color var(--dur) var(--ease); }
+th[data-sort]:hover { color:var(--ink); }
+th[data-sort]::after { content:"↕"; margin-left:5px; opacity:0.3; font-size:0.9em; }
+th[data-sort][aria-sort="ascending"]::after { content:"↑"; opacity:1; color:var(--accent-ink); }
+th[data-sort][aria-sort="descending"]::after { content:"↓"; opacity:1; color:var(--accent-ink); }
+th[data-sort]:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .jobtitle { font-weight:600; color:var(--ink); }
 .jobtitle:hover { color:var(--accent-ink); }
 
@@ -298,6 +307,84 @@ body.is-searching .hitcount { display:block; }
     var next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     store.setItem(KEY, next); apply(next);
   });
+})();
+</script>
+<script>
+// Click a column header to sort. Client-side so it composes with the search
+// filter and doesn't cost a round trip; hidden rows stay hidden.
+(function () {
+  function cellKey(row, index) {
+    var cell = row.cells[index];
+    if (!cell) return "";
+    return cell.dataset.key !== undefined ? cell.dataset.key : cell.textContent.trim();
+  }
+
+  function compare(kind) {
+    return function (a, b) {
+      if (kind === "num") {
+        var na = parseFloat(a.key), nb = parseFloat(b.key);
+        var aNaN = isNaN(na), bNaN = isNaN(nb);
+        if (aNaN && bNaN) return 0;
+        if (aNaN) return 1;            // blanks always last, either direction
+        if (bNaN) return -1;
+        return na - nb;
+      }
+      return a.key.localeCompare(b.key, undefined, { numeric: true, sensitivity: "base" });
+    };
+  }
+
+  function wire(table) {
+    var body = table.tBodies[0];
+    if (!body) return;
+    var headers = [].slice.call(table.tHead ? table.tHead.rows[0].cells : []);
+    var storeKey = "sort:" + (table.id || "table");
+
+    function sortBy(index, dir, remember) {
+      var kind = headers[index].dataset.sort || "text";
+      var rows = [].slice.call(body.rows).map(function (row, i) {
+        return { row: row, key: cellKey(row, index), i: i };
+      });
+      var cmp = compare(kind);
+      rows.sort(function (a, b) {
+        var r = cmp(a, b);
+        return (r || a.i - b.i) * (dir === "desc" ? -1 : 1);
+      });
+      rows.forEach(function (entry) { body.appendChild(entry.row); });
+      headers.forEach(function (th, i) {
+        if (!th.dataset.sort) return;
+        th.setAttribute("aria-sort", i === index ? (dir === "desc" ? "descending" : "ascending") : "none");
+      });
+      if (remember) { try { sessionStorage.setItem(storeKey, index + ":" + dir); } catch (e) {} }
+    }
+
+    headers.forEach(function (th, index) {
+      if (!th.dataset.sort) return;
+      th.tabIndex = 0;
+      th.setAttribute("role", "button");
+      th.setAttribute("aria-sort", "none");
+      function activate() {
+        var current = th.getAttribute("aria-sort");
+        // Numbers and dates are most useful highest-first on the first click.
+        var first = (th.dataset.sort === "num" || th.dataset.sort === "date") ? "desc" : "asc";
+        var dir = current === "none" ? first : (current === "ascending" ? "desc" : "asc");
+        sortBy(index, dir, true);
+      }
+      th.addEventListener("click", activate);
+      th.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
+      });
+    });
+
+    try {
+      var saved = sessionStorage.getItem(storeKey);
+      if (saved) {
+        var bits = saved.split(":");
+        if (headers[bits[0]] && headers[bits[0]].dataset.sort) sortBy(+bits[0], bits[1], false);
+      }
+    } catch (e) {}
+  }
+
+  document.querySelectorAll("table.sortable").forEach(wire);
 })();
 </script>
 <script>
