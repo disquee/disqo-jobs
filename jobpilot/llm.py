@@ -81,6 +81,12 @@ def complete(prompt: str, system: str = "", max_tokens: int = 2000,
         system=system or "You are a precise, helpful assistant.",
         messages=[{"role": "user", "content": prompt}],
     )
+    try:  # bookkeeping must never break a real request
+        from .usage import record
+
+        record(getattr(msg.usage, "input_tokens", 0), getattr(msg.usage, "output_tokens", 0))
+    except Exception:
+        pass
     return "".join(block.text for block in msg.content if block.type == "text")
 
 

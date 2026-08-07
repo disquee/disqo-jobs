@@ -164,6 +164,33 @@ input[type="text"]:focus, input[type="date"]:focus, select:focus {
 .formgrid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); }
 .formgrid .wide { grid-column:1 / -1; }
 .print-only { display:none; }
+
+/* Home: what to do next */
+.nextgrid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(290px, 1fr));
+  margin-bottom:14px; }
+.card.next { margin-bottom:0; }
+.nextlist { list-style:none; margin:10px 0 12px; padding:0; display:grid; gap:8px; }
+.nextlist li { display:flex; align-items:baseline; gap:8px; font-size:0.9rem; }
+.nextlist li .muted { font-size:0.82rem; }
+.nextlist li .fit { margin-left:auto; }
+.weekcount { display:flex; align-items:baseline; gap:10px; padding:12px 14px;
+  border-radius:var(--radius-sm); background:var(--surface-2); }
+.weekcount.tone-ok { background:var(--ok-bg); }
+.weekcount.tone-warn { background:var(--warn-bg); }
+.weeknum { font-size:1.7rem; font-weight:700; letter-spacing:-0.02em; }
+.pipeline { display:grid; gap:8px; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); }
+.pipeline a { display:grid; gap:2px; padding:12px; border:1px solid var(--line);
+  border-radius:var(--radius-sm); text-align:center; color:var(--ink);
+  transition:border-color var(--dur) var(--ease), background var(--dur) var(--ease); }
+.pipeline a:hover { border-color:var(--accent); background:var(--surface-2); text-decoration:none; }
+.pipenum { font-size:1.35rem; font-weight:700; }
+.pipelabel { font-size:0.76rem; color:var(--muted); }
+
+/* Long-running work */
+.progress { height:8px; background:var(--surface-2); border-radius:999px; overflow:hidden; }
+.progress > span { display:block; height:100%; background:var(--accent); border-radius:999px;
+  transition:width 400ms var(--ease); }
+button[data-busy] { opacity:0.65; pointer-events:none; }
 .statgrid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
 .statgrid > div { display:grid; gap:2px; }
 .statnum { font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; }
@@ -239,8 +266,10 @@ body.is-searching .hitcount { display:block; }
   <div class="topbar-inner">
     <span class="brand"><span class="brand-name">🛩️ disqo jobs</span></span>
     <nav class="navlinks">
-      <a href="/" class="{{ 'is-current' if nav == 'queue' else '' }}">Review queue</a>
-      <a href="/jobs/add" class="{{ 'is-current' if nav == 'add' else '' }}">Add a job</a>
+      <a href="/" class="{{ 'is-current' if nav == 'home' else '' }}">Today</a>
+      <a href="/jobs" class="{{ 'is-current' if nav == 'queue' else '' }}">My jobs</a>
+      <a href="/discover" class="{{ 'is-current' if nav == 'discover' else '' }}">Find jobs</a>
+      <a href="/prep" class="{{ 'is-current' if nav == 'prep' else '' }}">Interview prep</a>
       <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Work search log</a>
       <a href="/data" class="{{ 'is-current' if nav == 'data' else '' }}">Your data</a>
     </nav>
@@ -270,6 +299,18 @@ body.is-searching .hitcount { display:block; }
     store.setItem(KEY, next); apply(next);
   });
 })();
+</script>
+<script>
+// Tailoring and applying take tens of seconds. Without feedback people click twice.
+document.addEventListener("submit", function (e) {
+  var form = e.target;
+  if (!/\/(tailor|prep|launch|mark-applied)$/.test(form.getAttribute("action") || "")) return;
+  var btn = form.querySelector("button[type=submit], button:not([type])");
+  if (!btn || btn.dataset.busy) return;
+  btn.dataset.busy = "1";
+  btn.dataset.label = btn.textContent;
+  btn.textContent = "Working…";
+});
 </script>
 {% block scripts %}{% endblock %}
 </body>

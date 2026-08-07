@@ -753,6 +753,11 @@ body.present .qnotes { display: none; }
 
 <header class="topbar">
   <div class="topbar-inner">
+    <a class="iconbtn" id="backLink" href="/" title="Back to disqo jobs" hidden>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <path d="M10 3.5 5.5 8l4.5 4.5"/>
+      </svg>
+    </a>
     <div class="brand">
       <span class="brand-name" id="brandName"></span>
       <span class="brand-sub" id="brandSub"></span>
@@ -851,6 +856,10 @@ const PANELS = DATA.panels;
 const STORIES = DATA.stories;
 const SECTIONS = DATA.sections;
 document.getElementById("brandName").textContent = DATA.meta.title;
+if (location.protocol.startsWith("http")) {
+  const back = document.getElementById("backLink");
+  if (back) back.hidden = false;   // only meaningful when served by the app
+}
 document.getElementById("brandSub").textContent = DATA.meta.subtitle;
 const ORDER = DATA.meta.order;
 SECTIONS.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
@@ -869,7 +878,24 @@ try {
   store = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
 }
 const load = () => { try { return JSON.parse(store.getItem(KEY) || "{}"); } catch (e) { return {}; } };
-const save = s => { try { store.setItem(KEY, JSON.stringify(s)); } catch (e) {} };
+
+// When this page is served by disqo jobs (rather than opened from disk) mirror
+// state to the server, so notes are in the database and the backups instead of
+// living only in one browser's local storage.
+const SERVED = location.protocol.startsWith("http");
+const STATE_URL = SERVED ? location.pathname.replace(/\/$/, "") + "/state" : null;
+let syncTimer = null;
+function syncUp(s) {
+  if (!STATE_URL) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    fetch(STATE_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(s),
+    }).catch(() => {});
+  }, 600);
+}
+const save = s => { try { store.setItem(KEY, JSON.stringify(s)); } catch (e) {} syncUp(s); };
 let state = Object.assign({ done: {}, notes: {}, used: {}, checks: {}, conf: {}, theme: null }, load());
 const persist = () => save(state);
 
@@ -1454,6 +1480,17 @@ function updateCounts() {
 show(SECTIONS[0].id);
 updateCounts();
 refreshTracker();
+
+// Prefer whatever the server has if this browser has nothing yet.
+if (STATE_URL && !store.getItem(KEY)) {
+  fetch(STATE_URL).then(r => r.json()).then(remote => {
+    if (remote && Object.keys(remote).length) {
+      state = Object.assign(state, remote);
+      persist();
+      location.reload();
+    }
+  }).catch(() => {});
+}
 
 /* ============================================================
    Backup / restore — localStorage on file:// is fragile: it's keyed to the

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set nav = 'prep' %}
+{% block title %}Interview prep · disqo jobs{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Interview prep</h1>
+  <span class="page-sub">{{ jobs|length }} in progress</span>
+</div>
+
+{% if not jobs %}
+  <div class="tablecard"><div class="empty">
+    <p style="font-weight:600; color:var(--ink);">No prep pages yet</p>
+    <p style="margin-top:5px;">Open a job you're interviewing for and choose
+      <em>Create prep page</em>. It starts pre-filled with the posting and your
+      tailored resume.</p>
+  </div></div>
+{% else %}
+<div class="tablecard"><div class="scroll">
+  <table>
+    <thead><tr><th>Company</th><th>Role</th><th>Prep</th><th></th></tr></thead>
+    <tbody>
+    {% for job in jobs %}
+      <tr>
+        <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.company }}</a></td>
+        <td class="muted">{{ job.title }}</td>
+        <td>
+          {% if job.prep_status == PrepStatus.complete %}
+            <span class="pill tone-ok">✓ ready</span>
+          {% else %}
+            <span class="pill tone-accent">in progress</span>
+          {% endif %}
+        </td>
+        <td><a href="/job/{{ job.id }}/prep">Open prep →</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{% if candidates %}
+<div class="card" style="margin-top:16px;">
+  <h3>Applied, but no prep yet</h3>
+  <p class="muted" style="font-size:0.85rem;">Worth getting ahead of — a prep page takes
+    seconds to create and starts with the posting already in it.</p>
+  <div class="row" style="margin-top:12px; gap:8px;">
+    {% for job in candidates %}
+      <form class="inline" method="post" action="/job/{{ job.id }}/prep">
+        <button class="secondary tiny" type="submit">{{ job.company }} — {{ job.title[:38] }}</button>
+      </form>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

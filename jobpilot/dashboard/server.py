@@ -14,7 +14,9 @@ from pathlib import Path
 
 import yaml
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response,
+)
 from fastapi.templating import Jinja2Templates
 
 from ..config import BACKUP_DIR, CSV_PATH, DATA_DIR, DB_PATH, PROFILE_DIR, ROOT, load_config
@@ -30,6 +32,7 @@ from ..log_csv import append_application
 from ..models import (
     ActivityResult,
     Job,
+    display_status,
     ActivityType,
     Application,
     PrepStatus,
@@ -50,7 +53,12 @@ from ..settings import (
 )
 from ..pipeline import fit as fit_mod
 from ..pipeline import tailor as tailor_mod
-from ..pipeline.prep import ensure_job_prep, prep_html_path
+from ..pipeline.discover import discover as run_discover
+from ..pipeline.process import score_pending, tailor_above_threshold
+from ..usage import estimate_per_job, set_rates, summary as usage_summary
+from ..worklog import week_start
+from . import tasks
+from ..pipeline.prep import ensure_job_prep, prep_html_path, prep_json_path
 from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, render_pdf, resume_path
 from ..store import (
@@ -81,7 +89,58 @@ def _startup() -> None:
         threading.Thread(target=run_backup, daemon=True).start()
 
 
+def _interviewing_ids() -> set[str]:
+    """Job ids with an interview logged — the only place that fact lives."""
+    return {
+        a.job_id for a in list_activities()
+        if a.job_id and a.result == ActivityResult.interviewing
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    """What to do next, rather than a table of everything."""
+    threshold = int(load_config().get("fit_threshold", 70))
+    scored = list_jobs(Status.scored)
+    ready = list_jobs(Status.tailored)
+    applying = list_jobs(Status.approved)
+    applied = list_jobs(Status.applied)
+    interviewing = _interviewing_ids()
+
+    worth_review = sorted(
+        [j for j in scored if (j.fit_score or 0) >= threshold],
+        key=lambda j: j.fit_score or 0, reverse=True,
+    )
+    activities = list_activities()
+    this_week = week_start(date.today().isoformat())
+    week_count = sum(1 for a in activities if a.date >= this_week)
+    needs_prep = [j for j in applied + applying
+                  if j.prep_status != PrepStatus.complete][:5]
+
+    return templates.TemplateResponse(
+        request, "home.html",
+        {
+            "threshold": threshold,
+            "worth_review": worth_review[:5],
+            "worth_review_total": len(worth_review),
+            "ready": ready[:5], "ready_total": len(ready),
+            "applying_total": len(applying),
+            "applied_total": len(applied),
+            "interviewing_total": len(interviewing),
+            "week_count": week_count, "week_start": this_week,
+            "needs_prep": needs_prep,
+            "total_jobs": len(list_jobs()),
+            "usage": usage_summary(),
+            "per_job": estimate_per_job(),
+            "discovering": tasks.is_running("discover"),
+            "settings": load_settings(),
+            "display_status": display_status,
+            "interviewing": interviewing,
+        },
+    )
+
+
+@app.get("/jobs", response_class=HTMLResponse)
 def index(request: Request):
     threshold = int(load_config().get("fit_threshold", 70))
     # Applied jobs stay listed so the ✓ is visible at a glance, but sort under
@@ -95,7 +154,8 @@ def index(request: Request):
         request,
         "index.html",
         {"jobs": jobs, "threshold": threshold, "PrepStatus": PrepStatus,
-         "settings": load_settings()},
+         "settings": load_settings(), "display_status": display_status,
+         "interviewing": _interviewing_ids()},
     )
 
 
@@ -119,6 +179,7 @@ def job_detail(request: Request, job_id: str):
             "screening_json": screening_json,
             "PrepStatus": PrepStatus,
             "prep_exists": prep_html_path(job).exists(),
+            "display_status": display_status,
             "settings": load_settings(),
         },
     )
@@ -141,13 +202,24 @@ def do_prep(job_id: str, regenerate: str = Form("")):
 
 @app.get("/job/{job_id}/prep")
 def open_prep(job_id: str):
-    """Serve the generated prep page for this job."""
+    """Serve the generated prep page, rebuilding it if the app has moved on.
+
+    Pages are files on disk, so a template change would otherwise leave everyone
+    on the version generated the day they created it.
+    """
     job = get_job(job_id)
     if not job:
         return RedirectResponse("/", status_code=303)
     path = prep_html_path(job)
     if not path.exists():
         return RedirectResponse(f"/job/{job_id}", status_code=303)
+    try:
+        from ..pipeline.prep import TEMPLATE
+
+        if TEMPLATE.stat().st_mtime > path.stat().st_mtime:
+            ensure_job_prep(job, get_application(job_id))
+    except Exception:
+        pass  # a stale page still beats an error page
     return FileResponse(path, media_type="text/html")
 
 
@@ -395,6 +467,95 @@ def setup_targets(
     return RedirectResponse("/setup?step=done", status_code=303)
 
 
+# ---- search for jobs, with progress --------------------------------------
+
+@app.get("/discover", response_class=HTMLResponse)
+def discover_page(request: Request):
+    cfg = load_config()
+    return templates.TemplateResponse(
+        request, "discover.html",
+        {
+            "task": tasks.status("discover"),
+            "searches": cfg.get("searches", []),
+            "companies": (cfg.get("ats", {}) or {}).get("greenhouse", []),
+            "settings": load_settings(),
+            "per_job": estimate_per_job(),
+        },
+    )
+
+
+@app.post("/discover")
+def discover_start(score: str = Form("1"), tailor: str = Form("")):
+    """Run the whole find-and-prepare pipeline in the background."""
+    manual = load_settings().is_manual
+    want_score = bool(score) and not manual
+    want_tailor = bool(tailor) and not manual
+
+    def job(progress):
+        summary = run_discover(on_progress=lambda d, t_, label: progress(
+            d, t_ + (2 if want_score else 0), f"Searching · {label}"))
+        if want_score:
+            progress(0, 0, "Scoring new jobs")
+            summary["scored"] = score_pending()
+            if want_tailor:
+                progress(0, 0, "Writing applications for the best matches")
+                summary["tailored"] = tailor_above_threshold()
+        return summary
+
+    tasks.start("discover", job, label="Starting")
+    return RedirectResponse("/discover", status_code=303)
+
+
+@app.get("/discover/status")
+def discover_status():
+    return JSONResponse(tasks.status("discover") or {"state": "idle"})
+
+
+# ---- interview prep, inside the app ---------------------------------------
+
+@app.get("/prep", response_class=HTMLResponse)
+def prep_index(request: Request):
+    jobs = [j for j in list_jobs() if j.prep_status != PrepStatus.none]
+    jobs.sort(key=lambda j: (j.prep_status != PrepStatus.started, j.company.lower()))
+    return templates.TemplateResponse(
+        request, "prep.html",
+        {"jobs": jobs, "PrepStatus": PrepStatus, "settings": load_settings(),
+         "candidates": [j for j in list_jobs(Status.applied) + list_jobs(Status.approved)
+                        if j.prep_status == PrepStatus.none][:8]},
+    )
+
+
+@app.post("/job/{job_id}/prep/state")
+async def prep_state(job_id: str, request: Request):
+    """Persist prep-page notes server-side so they're in the database and the
+    backups, not just one browser's local storage."""
+    job = get_job(job_id)
+    if not job:
+        return JSONResponse({"ok": False}, status_code=404)
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False}, status_code=400)
+    path = prep_json_path(job).with_name(prep_json_path(job).stem + "-state.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return JSONResponse({"ok": True})
+
+
+@app.get("/job/{job_id}/prep/state")
+def prep_state_get(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        return JSONResponse({})
+    path = prep_json_path(job).with_name(prep_json_path(job).stem + "-state.json")
+    if not path.exists():
+        return JSONResponse({})
+    try:
+        return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return JSONResponse({})
+
+
 # ---- your data: where it lives, backups, restore --------------------------
 
 @app.get("/data", response_class=HTMLResponse)
@@ -414,6 +575,8 @@ def data_page(request: Request, msg: str = "", err: str = ""):
             "backups": list_backups()[:20],
             "last_backup": last_backup(),
             "days_since": days_since_backup(),
+            "usage": usage_summary(),
+            "settings": load_settings(),
             "msg": msg, "err": err,
         },
     )
@@ -428,6 +591,15 @@ def data_backup():
     return RedirectResponse(
         f"/data?msg=Backed up {', '.join(parts)}.", status_code=303
     )
+
+
+@app.post("/data/rates")
+def data_rates(input_rate: str = Form("0"), output_rate: str = Form("0")):
+    try:
+        set_rates(float(input_rate), float(output_rate))
+    except ValueError:
+        return RedirectResponse("/data?err=Rates must be numbers.", status_code=303)
+    return RedirectResponse("/data?msg=Cost estimate updated.", status_code=303)
 
 
 @app.post("/data/restore")

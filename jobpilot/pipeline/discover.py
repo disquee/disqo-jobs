@@ -32,8 +32,13 @@ def build_sources() -> list[tuple[JobSource, str, str]]:
     return tasks
 
 
-def discover() -> dict[str, int]:
-    """Run all sources, filter/dedupe, persist new jobs. Returns a summary."""
+def discover(on_progress=None) -> dict[str, int]:
+    """Run all sources, filter/dedupe, persist new jobs. Returns a summary.
+
+    ``on_progress(done, total, label)`` is called as each source finishes so a
+    UI can show what's happening — discovery can take minutes and silence reads
+    as a hang.
+    """
     init_db()
     # Each ATS board is cached per run so it downloads once across all queries.
     # Clear at the start so repeated runs (e.g. the dashboard) fetch fresh boards.
@@ -44,11 +49,22 @@ def discover() -> dict[str, int]:
 
     raw: list[Job] = []
     skipped_sources: list[str] = []
-    for source, query, location in build_sources():
+    tasks = build_sources()
+    total = len(tasks)
+    for i, (source, query, location) in enumerate(tasks, start=1):
+        label = f"{source.name} · {query or 'all roles'}"
+        if on_progress:
+            on_progress(i - 1, total, label)
         if not source.available():
             skipped_sources.append(source.name)
             continue
-        raw.extend(source.search(query, location, limit))
+        try:
+            raw.extend(source.search(query, location, limit))
+        except Exception:
+            # One flaky board must not abort a ten-minute run.
+            skipped_sources.append(source.name)
+    if on_progress:
+        on_progress(total, total, "Filtering and saving")
 
     filtered = apply_filters(raw)
     new_count = sum(1 for job in filtered if upsert_job(job))

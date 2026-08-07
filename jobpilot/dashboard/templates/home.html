@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% set nav = 'home' %}
+{% block title %}disqo jobs{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1 class="page-title">Today</h1>
+  <span class="page-sub">{{ total_jobs }} job{{ '' if total_jobs == 1 else 's' }} tracked</span>
+</div>
+
+{% if discovering %}
+  <div class="note tone-ok">
+    Searching for jobs right now — <a href="/discover">watch the progress</a>.
+  </div>
+{% endif %}
+
+<div class="nextgrid">
+  {# ------------------------------------------------ what to do next #}
+  <div class="card next">
+    <h3>Worth a look</h3>
+    {% if worth_review %}
+      <p class="muted" style="font-size:0.85rem;">
+        {{ worth_review_total }} job{{ '' if worth_review_total == 1 else 's' }} scored
+        {{ threshold }} or higher and not started yet.</p>
+      <ul class="nextlist">
+        {% for job in worth_review %}
+          <li>
+            <a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a>
+            <span class="muted">{{ job.company }}</span>
+            <span class="fit {{ 'hi' if (job.fit_score or 0) >= threshold else 'lo' }}">{{ job.fit_score }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if worth_review_total > worth_review|length %}
+        <a class="btn secondary tiny" href="/jobs">See all {{ worth_review_total }}</a>
+      {% endif %}
+    {% else %}
+      <p class="muted" style="font-size:0.88rem;">Nothing new to review.</p>
+      <div class="row" style="margin-top:12px;">
+        <a class="btn" href="/discover">Search for jobs</a>
+        <a class="btn secondary" href="/jobs/add">Paste a link</a>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ------------------------------------------------ ready to send #}
+  <div class="card next">
+    <h3>Ready to apply</h3>
+    {% if ready %}
+      <p class="muted" style="font-size:0.85rem;">
+        {{ ready_total }} {{ 'application has' if ready_total == 1 else 'applications have' }}
+        a resume and cover letter written and waiting.</p>
+      <ul class="nextlist">
+        {% for job in ready %}
+          <li>
+            <a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a>
+            <span class="muted">{{ job.company }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted" style="font-size:0.88rem;">
+        Nothing waiting. Open a job you like and choose
+        <em>Write my application</em>.</p>
+    {% endif %}
+  </div>
+
+  {# ------------------------------------------------ weekly requirement #}
+  <div class="card next">
+    <h3>This week's activity</h3>
+    <div class="weekcount {{ 'tone-ok' if week_count >= 3 else 'tone-warn' }}">
+      <span class="weeknum">{{ week_count }}</span>
+      <span class="muted">logged since {{ week_start }}</span>
+    </div>
+    <p class="muted" style="font-size:0.83rem; margin-top:10px;">
+      {% if week_count >= 3 %}
+        On track for a typical three-per-week requirement.
+      {% else %}
+        Many states require about three work-search activities a week. Check yours.
+      {% endif %}
+    </p>
+    <div class="row" style="margin-top:12px;">
+      <a class="btn secondary tiny" href="/applied">Open the log</a>
+      <a class="btn secondary tiny" href="/log/export.xlsx">Download</a>
+    </div>
+  </div>
+
+  {# ------------------------------------------------ interviews #}
+  <div class="card next">
+    <h3>Interviews</h3>
+    {% if interviewing_total %}
+      <p class="muted" style="font-size:0.85rem;">
+        {{ interviewing_total }} in progress.</p>
+    {% else %}
+      <p class="muted" style="font-size:0.88rem;">None logged yet. Mark a log entry
+        <em>Interviewing</em> and it shows up here.</p>
+    {% endif %}
+    {% if needs_prep %}
+      <p class="muted" style="font-size:0.85rem; margin-top:10px;">Prep not finished for:</p>
+      <ul class="nextlist">
+        {% for job in needs_prep %}
+          <li><a class="jobtitle" href="/job/{{ job.id }}">{{ job.company }}</a>
+            <span class="muted">{{ job.title }}</span></li>
+        {% endfor %}
+      </ul>
+      <a class="btn secondary tiny" href="/prep">Interview prep</a>
+    {% endif %}
+  </div>
+</div>
+
+{# ------------------------------------------------ progress strip #}
+<div class="card" style="margin-top:6px;">
+  <h3>Where everything stands</h3>
+  <div class="pipeline">
+    <a href="/jobs"><span class="pipenum">{{ worth_review_total }}</span><span class="pipelabel">Saved</span></a>
+    <a href="/jobs"><span class="pipenum">{{ ready_total }}</span><span class="pipelabel">Ready to apply</span></a>
+    <a href="/jobs"><span class="pipenum">{{ applying_total }}</span><span class="pipelabel">Applying</span></a>
+    <a href="/jobs"><span class="pipenum">{{ applied_total }}</span><span class="pipelabel">Applied</span></a>
+    <a href="/applied"><span class="pipenum">{{ interviewing_total }}</span><span class="pipelabel">Interviewing</span></a>
+  </div>
+</div>
+
+{% if usage.calls %}
+<p class="muted" style="margin-top:14px; font-size:0.8rem;">
+  AI usage so far: {{ usage.calls }} request{{ '' if usage.calls == 1 else 's' }},
+  roughly <strong>${{ '%.2f'|format(usage.total_cost) }}</strong> estimated
+  {%- if per_job %} (about {{ '%.0f'|format(per_job * 100) }}¢ per action){% endif %}.
+  <a href="/data">Adjust the estimate</a>.
+</p>
+{% endif %}
+{% endblock %}

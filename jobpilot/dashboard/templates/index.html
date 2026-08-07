@@ -15,7 +15,7 @@
 
 {% block content %}
 <div class="page-head">
-  <h1 class="page-title">Review queue</h1>
+  <h1 class="page-title">My jobs</h1>
   <span class="page-sub">Fit threshold {{ threshold }} · {{ jobs|length }} in queue</span>
 </div>
 
@@ -49,13 +49,9 @@
         <td><a class="jobtitle" href="/job/{{ job.id }}">{{ job.title }}</a></td>
         <td>{{ job.company }}</td>
         <td class="muted">{{ job.location or '—' }}</td>
-        <td>
-          {% if job.status.value == 'applied' %}
-            <span class="pill tone-ok">✓ applied</span>
-          {% else %}
-            <span class="pill">{{ job.status.value }}</span>
-          {% endif %}
-        </td>
+        {% set label, tone = display_status(job.status, job.id in interviewing) %}
+        <td><span class="pill {{ 'tone-' ~ tone if tone }}">
+          {{ '✓ ' if tone == 'ok' }}{{ label }}</span></td>
         <td>
           {% if job.prep_status == PrepStatus.complete %}
             <a href="/job/{{ job.id }}/prep" class="pill tone-ok">✓ prep ready</a>

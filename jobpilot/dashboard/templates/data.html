@@ -77,6 +77,33 @@
 </div>
 
 <div class="card">
+  <h3>AI usage</h3>
+  {% if usage.calls %}
+    <div class="statgrid">
+      <div><span class="statnum">{{ usage.calls }}</span><span class="statlabel">requests</span></div>
+      <div><span class="statnum">${{ '%.2f'|format(usage.total_cost) }}</span><span class="statlabel">estimated total</span></div>
+      <div><span class="statnum">${{ '%.2f'|format(usage.today_cost) }}</span><span class="statlabel">estimated today</span></div>
+    </div>
+    <p class="muted" style="margin-top:10px; font-size:0.83rem;">
+      {{ '{:,}'.format(usage.input_tokens) }} tokens in, {{ '{:,}'.format(usage.output_tokens) }} out.
+      <strong>Token counts are exact; dollars are an estimate</strong> — rates change and
+      vary by model, so set yours below.
+    </p>
+  {% else %}
+    <p class="muted" style="font-size:0.86rem;">No AI requests yet.</p>
+  {% endif %}
+  <form method="post" action="/data/rates" style="margin-top:14px;">
+    <div class="formgrid" style="max-width:460px;">
+      <label class="field"><span>$ per million input tokens</span>
+        <input type="text" name="input_rate" value="{{ usage.input_rate }}"></label>
+      <label class="field"><span>$ per million output tokens</span>
+        <input type="text" name="output_rate" value="{{ usage.output_rate }}"></label>
+    </div>
+    <div class="row" style="margin-top:12px;"><button class="secondary" type="submit">Update estimate</button></div>
+  </form>
+</div>
+
+<div class="card">
   <h3>Keep a copy somewhere else</h3>
   <p class="muted" style="font-size:0.86rem;">
     Backups on the same laptop don't survive a lost or broken laptop. Two options:

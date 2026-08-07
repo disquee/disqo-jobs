@@ -29,6 +29,26 @@ class PrepStatus(str, Enum):
     complete = "complete"   # user marked prep done
 
 
+# Pipeline states are engineering vocabulary. Users think in terms of what they
+# have to do next, so the UI never shows the raw enum.
+STATUS_DISPLAY: dict[str, tuple[str, str]] = {
+    "discovered": ("Saved", ""),
+    "scored": ("Saved", ""),
+    "tailored": ("Ready to apply", "accent"),
+    "approved": ("Applying", "accent"),
+    "applied": ("Applied", "ok"),
+    "skipped": ("Not pursuing", ""),
+}
+
+
+def display_status(status: "Status", interviewing: bool = False) -> tuple[str, str]:
+    """(label, tone) for a job. ``interviewing`` comes from the work-search log,
+    which is the only place that fact is recorded."""
+    if interviewing:
+        return ("Interviewing", "ok")
+    return STATUS_DISPLAY.get(getattr(status, "value", str(status)), ("Saved", ""))
+
+
 class Job(BaseModel):
     """A normalized job posting from any source."""
 

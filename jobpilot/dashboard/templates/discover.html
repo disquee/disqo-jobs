@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% set nav = 'discover' %}
+{% block title %}Search for jobs · disqo jobs{% endblock %}
+{% block content %}
+<div class="page-head"><h1 class="page-title">Search for jobs</h1></div>
+
+<div class="card" id="runner"
+     data-state="{{ task.state if task else 'idle' }}">
+  <div id="idle" {% if task and task.state == 'running' %}hidden{% endif %}>
+    <p class="muted" style="font-size:0.88rem;">
+      Checks the job boards and company career pages you picked during setup.
+      This usually takes a few minutes — you can leave the page and come back.
+    </p>
+
+    {% if searches %}
+      <p class="muted" style="margin-top:12px; font-size:0.85rem;">Looking for:</p>
+      <div class="row" style="gap:6px; margin-top:6px;">
+        {% for s in searches[:12] %}<span class="pill">{{ s.query }}</span>{% endfor %}
+        {% if companies %}<span class="pill tone-accent">+ {{ companies|length }} companies</span>{% endif %}
+      </div>
+    {% else %}
+      <div class="note tone-warn" style="margin-top:12px;">
+        No search terms yet. <a href="/setup?step=targets">Pick what to look for</a> first.
+      </div>
+    {% endif %}
+
+    <form method="post" action="/discover" style="margin-top:18px;" id="startForm">
+      {% if not settings.is_manual %}
+        <label class="check" style="max-width:420px;">
+          <input type="checkbox" name="score" value="1" checked> Score how well each job fits me
+        </label>
+        <label class="check" style="max-width:420px; margin-top:8px;">
+          <input type="checkbox" name="tailor" value="1"> Also write applications for the best matches
+        </label>
+        <p class="muted" style="margin-top:10px; font-size:0.8rem;">
+          Scoring and writing use AI and cost money
+          {%- if per_job %}, roughly {{ '%.0f'|format(per_job * 100) }}¢ per job{% endif %}.
+          Leave them off to just collect listings.
+        </p>
+      {% else %}
+        <p class="muted" style="font-size:0.85rem;">
+          You're set up without an API key, so this only collects listings —
+          score and write each one from its own page.
+        </p>
+      {% endif %}
+      <div class="row" style="margin-top:16px;">
+        <button type="submit" {% if not searches %}disabled{% endif %}>Start searching</button>
+        <a class="btn secondary" href="/jobs/add">Paste a single link instead</a>
+      </div>
+    </form>
+  </div>
+
+  <div id="running" {% if not (task and task.state == 'running') %}hidden{% endif %}>
+    <h3 id="runLabel">Starting…</h3>
+    <div class="progress"><span id="runBar" style="width:0%"></span></div>
+    <p class="muted" style="margin-top:10px; font-size:0.85rem;">
+      <span id="runCount"></span> <span id="runElapsed"></span>
+    </p>
+    <p class="muted" style="font-size:0.82rem;">
+      Safe to leave this page — it keeps running.
+    </p>
+  </div>
+
+  <div id="finished" hidden>
+    <h3 id="doneTitle">Done</h3>
+    <p class="muted" id="doneDetail" style="font-size:0.88rem;"></p>
+    <div class="row" style="margin-top:14px;">
+      <a class="btn" href="/jobs">See what turned up</a>
+      <button class="secondary" type="button" onclick="location.reload()">Search again</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var root = document.getElementById("runner");
+  var idle = document.getElementById("idle"), running = document.getElementById("running"),
+      finished = document.getElementById("finished");
+  var bar = document.getElementById("runBar"), label = document.getElementById("runLabel"),
+      count = document.getElementById("runCount"), elapsed = document.getElementById("runElapsed");
+  var timer = null;
+
+  function show(which) {
+    idle.hidden = which !== "idle";
+    running.hidden = which !== "running";
+    finished.hidden = which !== "finished";
+  }
+
+  function human(s) {
+    if (!s && s !== 0) return "";
+    var m = Math.floor(s / 60), r = s % 60;
+    return m ? m + "m " + r + "s elapsed" : r + "s elapsed";
+  }
+
+  function poll() {
+    fetch("/discover/status").then(function (r) { return r.json(); }).then(function (t) {
+      if (t.state === "running") {
+        show("running");
+        label.textContent = t.label || "Working…";
+        var pct = t.total ? Math.min(100, Math.round((t.done / t.total) * 100)) : 0;
+        bar.style.width = (t.total ? pct : 8) + "%";
+        count.textContent = t.total ? t.done + " of " + t.total + " sources · " : "";
+        elapsed.textContent = human(t.elapsed);
+        return;
+      }
+      clearInterval(timer);
+      if (t.state === "done") {
+        var r2 = t.result || {};
+        show("finished");
+        document.getElementById("doneTitle").textContent =
+          (r2.new || 0) + " new job" + (r2.new === 1 ? "" : "s") + " found";
+        var bits = [];
+        if (r2.found != null) bits.push(r2.found + " listings checked");
+        if (r2.scored) bits.push(r2.scored + " scored");
+        if (r2.tailored) bits.push(r2.tailored + " applications written");
+        if ((r2.unavailable_sources || []).length)
+          bits.push("skipped (no API key): " + r2.unavailable_sources.join(", "));
+        document.getElementById("doneDetail").textContent = bits.join(" · ");
+      } else if (t.state === "error") {
+        show("finished");
+        document.getElementById("doneTitle").textContent = "Search stopped";
+        document.getElementById("doneDetail").textContent = t.error || "Something went wrong.";
+      }
+    }).catch(function () { /* keep polling; a blip shouldn't kill the view */ });
+  }
+
+  document.getElementById("startForm").addEventListener("submit", function () {
+    show("running");
+    label.textContent = "Starting…";
+  });
+
+  if (root.dataset.state === "running") show("running");
+  timer = setInterval(poll, 1200);
+  poll();
+})();
+</script>
+{% endblock %}

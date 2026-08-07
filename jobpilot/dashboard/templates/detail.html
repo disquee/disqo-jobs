@@ -2,7 +2,7 @@
 {% set nav = 'queue' %}
 {% block title %}{{ job.title }} · disqo jobs{% endblock %}
 {% block content %}
-<p><a href="/" class="muted">← Back to queue</a></p>
+<p><a href="/jobs" class="muted">← Back to my jobs</a></p>
 
 <div class="card" style="margin-top:12px;">
   <div class="row" style="justify-content:space-between; align-items:flex-start;">
@@ -10,8 +10,8 @@
       <h1 class="page-title" style="font-size:1.3rem;">{{ job.title }}</h1>
       <p class="muted" style="margin-top:4px;">
         {{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}
-        · {% if job.status.value == 'applied' %}<span class="pill tone-ok">✓ applied</span>
-          {% else %}<span class="pill">{{ job.status.value }}</span>{% endif %}
+        · {% set label, tone = display_status(job.status) %}
+          <span class="pill {{ 'tone-' ~ tone if tone }}">{{ '✓ ' if tone == 'ok' }}{{ label }}</span>
       </p>
     </div>
     <div class="fit {{ 'hi' if (job.fit_score or 0) >= 70 else 'lo' }}" style="font-size:1.9rem;">
@@ -80,7 +80,7 @@
   <div class="card">
     <p class="muted" style="margin-bottom:12px;">Not tailored yet.</p>
     <form method="post" action="/job/{{ job.id }}/tailor">
-      <button type="submit">Generate tailored resume, cover letter &amp; answers</button>
+      <button type="submit">Write my application</button>
     </form>
   </div>
 {% else %}
