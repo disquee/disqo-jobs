@@ -36,6 +36,8 @@ ALLOW: list[str] = [
     "jobpilot",                    # the package (incl. pipeline/templates)
     "tests",
     "scripts/package.py",
+    "start-jobpilot.command",      # double-click launcher, macOS/Linux
+    "start-jobpilot.bat",          # double-click launcher, Windows
     "examples/prep.sample.json",   # anonymized sample loop
     "profile/profile.example.yaml",
     "profile/resume_master.example.md",
