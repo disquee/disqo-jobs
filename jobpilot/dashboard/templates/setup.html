@@ -17,8 +17,9 @@
   {% if step == 'welcome' %}
     <div class="card">
       <h2 class="page-title">Let's get you set up</h2>
-      <p class="muted" style="margin-top:8px;">Five short steps. Everything stays on this
-        computer — your resume and job history are never uploaded anywhere.</p>
+      <p class="muted" style="margin-top:8px;">Five short steps. There's no account and no
+        server — <strong>disqo jobs never receives your data</strong>. Your resume and
+        job history stay on this computer.</p>
 
       <h3 style="margin-top:22px;">How do you want to use AI?</h3>
       <form method="post" action="/setup/mode">
@@ -27,7 +28,9 @@
           <span>
             <strong>Use an API key</strong> — recommended
             <span class="muted">Everything happens automatically. Needs an account with
-              an AI provider and a payment method. Usually a few cents per job.</span>
+              an AI provider and a payment method — usually a few cents per job. Job
+              postings and the relevant parts of your resume are sent to that provider
+              to be processed.</span>
           </span>
         </label>
         <label class="choice">
@@ -36,7 +39,8 @@
             <strong>No API key — copy and paste</strong>
             <span class="muted">disqo jobs writes the instructions, you paste them into
               ChatGPT or Claude in a browser tab and paste the answer back. Free if you
-              already have an account, but you do the copying.</span>
+              already have an account, and nothing is sent anywhere automatically — you
+              choose what to paste. But you do the copying.</span>
           </span>
         </label>
         <div class="row" style="margin-top:16px;"><button type="submit">Continue</button></div>

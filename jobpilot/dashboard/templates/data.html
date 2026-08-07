@@ -31,9 +31,19 @@
 </div>
 
 <div class="card">
-  <h3>Where it lives</h3>
-  <p class="muted" style="font-size:0.86rem;">Deliberately outside the disqo jobs app folder,
-    so updating or deleting the app never touches your records.</p>
+  <h3>Where your data lives</h3>
+  <p class="muted" style="font-size:0.86rem;">
+    <strong>disqo jobs doesn't collect your data.</strong> There's no account and no
+    server behind this app — your resume, your jobs, and your log stay on this
+    computer, in the folder below. It sits outside the app folder, so updating or
+    deleting disqo jobs never touches your records.
+  </p>
+  <p class="muted" style="font-size:0.83rem; margin-top:8px;">
+    The one exception is AI: when you use scoring or application writing, the job
+    posting and the relevant parts of your resume are sent to <em>your</em> AI
+    provider to be processed. In copy-and-paste mode nothing is sent automatically
+    at all — you choose what to paste.
+  </p>
   <p style="margin-top:10px;"><code>{{ data_dir }}</code></p>
   <div class="row" style="margin-top:14px;">
     <form class="inline" method="post" action="/data/backup">
