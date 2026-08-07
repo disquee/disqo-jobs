@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% set nav = 'prep' %}
+{% block title %}Edit prep · {{ job.company }}{% endblock %}
+{% block content %}
+<p><a href="/job/{{ job.id }}/prep" class="muted">← Back to the prep page</a></p>
+<div class="page-head" style="margin-top:12px;">
+  <h1 class="page-title">Edit prep content</h1>
+  <span class="page-sub">{{ job.company }} — {{ job.title }}</span>
+</div>
+{% if msg %}<div class="note tone-ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="note tone-warn">{{ err }}</div>{% endif %}
+
+<form method="post" action="/job/{{ job.id }}/prep/edit">
+  <div class="card">
+    <h3>Your stories</h3>
+    <p class="muted" style="font-size:0.85rem;">The examples you'll reach for. The tracker
+      stops you telling the same one to two interviewers.</p>
+    <div id="stories" style="margin-top:12px;">
+      {% for s in stories or [{'id':'S1','label':'','metric':''}] %}
+        <div class="editrow rowstory">
+          <input type="text" name="story_id" value="{{ s.id }}" placeholder="S1" style="max-width:80px;">
+          <input type="text" name="story_label" value="{{ s.label }}" placeholder="What you did">
+          <input type="text" name="story_metric" value="{{ s.metric }}" placeholder="The number it turns on">
+          <button type="button" class="btn danger tiny removerow">Remove</button>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button type="button" class="secondary addrow" data-target="stories">Add a story</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Numbers cheat sheet</h3>
+    <p class="muted" style="font-size:0.85rem;">Lead with these when an interviewer is moving fast.</p>
+    <div id="numbers" style="margin-top:12px;">
+      {% for n in numbers or [{'v':'','s':'','w':''}] %}
+        <div class="editrow rownum">
+          <input type="text" name="num_v" value="{{ n.v }}" placeholder="Escalations down 38%">
+          <input type="text" name="num_s" value="{{ n.s }}" placeholder="Where it came from">
+          <input type="text" name="num_w" value="{{ n.w }}" placeholder="What it proves">
+          <button type="button" class="btn danger tiny removerow">Remove</button>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button type="button" class="secondary addrow" data-target="numbers">Add a number</button>
+    </div>
+  </div>
+
+  {% for panel in panels %}
+    <div class="card">
+      <h3>{{ panel.title }}</h3>
+      <p class="muted" style="font-size:0.85rem;">{{ panel.lede | striptags if panel.lede }}</p>
+      <div id="q-{{ panel.id }}" style="margin-top:12px;">
+        {% for item in panel['items'] %}
+          <div class="qedit">
+            <input type="hidden" name="q_panel" value="{{ panel.id }}">
+            <div class="formgrid">
+              <label class="field"><span>Short label you can read live</span>
+                <input type="text" name="q_label" value="{{ item.label or '' }}"></label>
+              <label class="field"><span>ID</span>
+                <input type="text" name="q_id" value="{{ item.id }}"></label>
+            </div>
+            <label class="field wide" style="margin-top:10px;"><span>The question</span>
+              <input type="text" name="q_text" value="{{ item.q }}"></label>
+            <div class="formgrid" style="margin-top:10px;">
+              <label class="field"><span>Situation</span><textarea name="q_s" style="min-height:70px;">{{ item.star.s if item.star }}</textarea></label>
+              <label class="field"><span>Task</span><textarea name="q_t" style="min-height:70px;">{{ item.star.t if item.star }}</textarea></label>
+              <label class="field"><span>Action</span><textarea name="q_a" style="min-height:70px;">{{ item.star.a if item.star }}</textarea></label>
+              <label class="field"><span>Result</span><textarea name="q_r" style="min-height:70px;">{{ item.star.r if item.star }}</textarea></label>
+            </div>
+            <label class="field wide" style="margin-top:10px;"><span>The line worth repeating</span>
+              <input type="text" name="q_punch" value="{{ item.punch.text if item.punch else '' }}"></label>
+            <button type="button" class="btn danger tiny removerow" style="margin-top:10px;">Remove question</button>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button type="button" class="secondary addrow" data-target="q-{{ panel.id }}">Add a question</button>
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="row" style="margin-bottom:28px;">
+    <button type="submit">Save and rebuild the page</button>
+    <a class="btn secondary" href="/job/{{ job.id }}/prep">Cancel</a>
+  </div>
+</form>
+
+<details class="card">
+  <summary style="cursor:pointer; font-weight:600;">Edit the whole document as JSON</summary>
+  <p class="muted" style="font-size:0.83rem; margin-top:10px;">
+    For anything the forms above don't reach — the checklist, interviewer cards, the
+    posting. Checked before it's saved; if it's malformed nothing changes.
+  </p>
+  <form method="post" action="/job/{{ job.id }}/prep/raw" style="margin-top:10px;">
+    <textarea name="raw" style="min-height:340px; font-size:12px;">{{ raw }}</textarea>
+    <div class="row" style="margin-top:10px;"><button class="secondary" type="submit">Save JSON</button></div>
+  </form>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function wire(scope) {
+    scope.querySelectorAll(".removerow").forEach(function (b) {
+      b.onclick = function () {
+        var row = b.closest(".editrow, .qedit");
+        var list = row.parentNode;
+        if (list.children.length > 1) row.remove();
+        else row.querySelectorAll("input:not([type=hidden]), textarea").forEach(function (i) { i.value = ""; });
+      };
+    });
+  }
+  document.querySelectorAll(".addrow").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var list = document.getElementById(btn.dataset.target);
+      var copy = list.lastElementChild.cloneNode(true);
+      copy.querySelectorAll("input:not([type=hidden]), textarea").forEach(function (i) { i.value = ""; });
+      list.appendChild(copy); wire(copy);
+      var first = copy.querySelector("input:not([type=hidden])");
+      if (first) first.focus();
+    });
+  });
+  wire(document);
+})();
+</script>
+{% endblock %}

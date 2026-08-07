@@ -48,8 +48,12 @@ from ..worklog import to_csv, to_xlsx, weekly_counts
 from ..ingest import (
     fetch_posting, parse_competencies, parse_interviewers, resume_text, spreadsheet_rows,
 )
+from ..searchconfig import current as config_current, save as config_save
 from ..settings import (
+    ENV_KEYS,
     check_api_key,
+    env_status,
+    set_env,
     has_api_key,
     load_settings,
     needs_setup,
@@ -66,7 +70,7 @@ from ..worklog import week_start
 from . import tasks
 from ..pipeline.prep import (
     ensure_job_prep, load_plan, prep_html_path, prep_json_path, prep_plan_path,
-    save_plan,
+    render_prep_file, save_plan,
 )
 from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, render_pdf, resume_path
@@ -245,7 +249,7 @@ def index(request: Request):
 
 
 @app.get("/job/{job_id}", response_class=HTMLResponse)
-def job_detail(request: Request, job_id: str):
+def job_detail(request: Request, job_id: str, err: str = ""):
     job = get_job(job_id)
     if not job:
         return RedirectResponse("/", status_code=303)
@@ -266,6 +270,7 @@ def job_detail(request: Request, job_id: str):
             "prep_exists": prep_html_path(job).exists(),
             "prep_plan": load_plan(job),
             "prep_is_placeholder": _prep_is_placeholder(job),
+            "err": err,
             "display_status": display_status,
             "settings": load_settings(),
         },
@@ -428,6 +433,108 @@ def open_prep(job_id: str):
     except Exception:
         pass  # a stale page still beats an error page
     return FileResponse(path, media_type="text/html")
+
+
+@app.get("/job/{job_id}/prep/edit", response_class=HTMLResponse)
+def prep_edit(request: Request, job_id: str, err: str = "", msg: str = ""):
+    """Edit the parts of a prep page the walkthrough doesn't cover."""
+    job = get_job(job_id)
+    if not job or not prep_json_path(job).exists():
+        return RedirectResponse(f"/job/{job_id}", status_code=303)
+    data = json.loads(prep_json_path(job).read_text(encoding="utf-8"))
+    panels = [s for s in data["sections"] if s.get("kind") == "qa"]
+    numbers = next((s for s in data["sections"] if s.get("kind") == "numbers"), {"rows": []})
+    return templates.TemplateResponse(
+        request, "prep_edit.html",
+        {"job": job, "data": data, "panels": panels,
+         "stories": data.get("stories", []), "numbers": numbers.get("rows", []),
+         "raw": json.dumps(data, indent=2), "err": err, "msg": msg,
+         "settings": load_settings()},
+    )
+
+
+@app.post("/job/{job_id}/prep/edit")
+def prep_edit_save(
+    job_id: str,
+    story_id: list[str] = Form([]), story_label: list[str] = Form([]),
+    story_metric: list[str] = Form([]),
+    num_v: list[str] = Form([]), num_s: list[str] = Form([]), num_w: list[str] = Form([]),
+    q_panel: list[str] = Form([]), q_id: list[str] = Form([]), q_label: list[str] = Form([]),
+    q_text: list[str] = Form([]), q_s: list[str] = Form([]), q_t: list[str] = Form([]),
+    q_a: list[str] = Form([]), q_r: list[str] = Form([]), q_punch: list[str] = Form([]),
+):
+    job = get_job(job_id)
+    path = prep_json_path(job) if job else None
+    if not job or not path.exists():
+        return RedirectResponse(f"/job/{job_id}", status_code=303)
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    stories = []
+    for i, sid in enumerate(story_id):
+        label = story_label[i].strip() if i < len(story_label) else ""
+        if not label:
+            continue
+        stories.append({"id": sid.strip() or f"S{i + 1}", "label": label,
+                        "metric": story_metric[i].strip() if i < len(story_metric) else "",
+                        "rec": []})
+    if stories:
+        data["stories"] = stories
+
+    rows = []
+    for i, v in enumerate(num_v):
+        if not v.strip():
+            continue
+        rows.append({"v": v.strip(),
+                     "s": num_s[i].strip() if i < len(num_s) else "",
+                     "w": num_w[i].strip() if i < len(num_w) else ""})
+    for section in data["sections"]:
+        if section.get("kind") == "numbers" and rows:
+            section["rows"] = rows
+
+    by_panel: dict[str, list[dict]] = {}
+    for i, panel in enumerate(q_panel):
+        text = q_text[i].strip() if i < len(q_text) else ""
+        if not text:
+            continue
+        item = {
+            "id": (q_id[i].strip() if i < len(q_id) else "") or f"Q{i + 1}",
+            "tag": "STAR", "label": q_label[i].strip() if i < len(q_label) else "",
+            "q": text, "stories": [],
+            "star": {"s": q_s[i] if i < len(q_s) else "", "t": q_t[i] if i < len(q_t) else "",
+                     "a": q_a[i] if i < len(q_a) else "", "r": q_r[i] if i < len(q_r) else ""},
+        }
+        if i < len(q_punch) and q_punch[i].strip():
+            item["punch"] = {"label": "The line", "text": q_punch[i].strip()}
+        by_panel.setdefault(panel, []).append(item)
+    for section in data["sections"]:
+        if section.get("kind") == "qa" and section["id"] in by_panel:
+            section["items"] = by_panel[section["id"]]
+
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    render_prep_file(path, prep_html_path(job))
+    return RedirectResponse(f"/job/{job_id}/prep/edit?msg=Saved and rebuilt.", status_code=303)
+
+
+@app.post("/job/{job_id}/prep/raw")
+def prep_edit_raw(job_id: str, raw: str = Form("")):
+    """Escape hatch: edit the whole document, validated before it's kept."""
+    job = get_job(job_id)
+    path = prep_json_path(job) if job else None
+    if not job or not path.exists():
+        return RedirectResponse(f"/job/{job_id}", status_code=303)
+    try:
+        data = json.loads(raw)
+        ids = {s["id"] for s in data["sections"]}
+        missing = [s for s in data["meta"]["order"] if s not in ids]
+        if missing:
+            raise ValueError("meta.order lists sections that don't exist: " + ", ".join(missing))
+    except Exception as e:
+        from urllib.parse import quote
+
+        return RedirectResponse(f"/job/{job_id}/prep/edit?err={quote(str(e)[:200])}", status_code=303)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    render_prep_file(path, prep_html_path(job))
+    return RedirectResponse(f"/job/{job_id}/prep/edit?msg=Saved and rebuilt.", status_code=303)
 
 
 @app.post("/job/{job_id}/prep/delete")
@@ -692,6 +799,132 @@ def setup_targets(
     return RedirectResponse("/setup?step=done", status_code=303)
 
 
+# ---- settings: everything that used to need a text editor -----------------
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, msg: str = "", err: str = ""):
+    cfg = config_current()
+    profile = {}
+    pf = PROFILE_DIR / "profile.yaml"
+    if pf.exists():
+        try:
+            profile = yaml.safe_load(pf.read_text(encoding="utf-8")) or {}
+        except Exception:
+            profile = {}
+    return templates.TemplateResponse(
+        request, "settings.html",
+        {
+            "cfg": cfg, "settings": load_settings(), "env": env_status(),
+            "env_labels": ENV_KEYS, "profile": profile,
+            "screening": profile.get("screening_defaults") or {},
+            "data_dir": str(DATA_DIR),
+            "resume_chars": len((PROFILE_DIR / "resume_master.md").read_text(encoding="utf-8"))
+            if (PROFILE_DIR / "resume_master.md").exists() else 0,
+            "msg": msg, "err": err,
+        },
+    )
+
+
+@app.post("/settings/sources")
+def settings_sources(
+    query: list[str] = Form([]), location: list[str] = Form([]),
+    greenhouse: str = Form(""), lever: str = Form(""),
+):
+    """Roles and where to look, each with its own location."""
+    searches = []
+    for i, q in enumerate(query):
+        if q.strip():
+            searches.append({"query": q.strip(),
+                             "location": (location[i].strip() if i < len(location) else "") or "Remote"})
+    cfg = config_current()
+    cfg["searches"] = searches
+    cfg["ats"] = {
+        "greenhouse": [s.strip() for s in greenhouse.replace(",", "\n").splitlines() if s.strip()],
+        "lever": [s.strip() for s in lever.replace(",", "\n").splitlines() if s.strip()],
+    }
+    config_save(cfg)
+    return RedirectResponse("/settings?msg=Search targets saved.", status_code=303)
+
+
+@app.post("/settings/behaviour")
+def settings_behaviour(
+    fit_threshold: str = Form("55"), results_per_search: str = Form("25"),
+    max_apply_per_day: str = Form("15"), exclude_title_keywords: str = Form(""),
+    exclude_company: str = Form(""),
+):
+    def as_int(value: str, default: int, lo: int, hi: int) -> int:
+        try:
+            return max(lo, min(hi, int(float(value))))
+        except (TypeError, ValueError):
+            return default
+
+    cfg = config_current()
+    cfg["fit_threshold"] = as_int(fit_threshold, 55, 0, 100)
+    cfg["results_per_search"] = as_int(results_per_search, 25, 1, 200)
+    cfg["max_apply_per_day"] = as_int(max_apply_per_day, 15, 1, 100)
+    cfg["exclude_title_keywords"] = [s.strip() for s in exclude_title_keywords.splitlines() if s.strip()]
+    cfg["exclude_company"] = [s.strip() for s in exclude_company.splitlines() if s.strip()]
+    config_save(cfg)
+    return RedirectResponse("/settings?msg=Search behaviour saved.", status_code=303)
+
+
+@app.post("/settings/keys")
+def settings_keys(
+    ANTHROPIC_API_KEY: str = Form(""), ADZUNA_APP_ID: str = Form(""),
+    ADZUNA_APP_KEY: str = Form(""), JOOBLE_API_KEY: str = Form(""),
+    JOBPILOT_MODEL: str = Form(""), llm_mode: str = Form(""),
+):
+    """Blank means leave alone, so a page can show status without echoing secrets."""
+    for key, value in [("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY),
+                       ("ADZUNA_APP_ID", ADZUNA_APP_ID),
+                       ("ADZUNA_APP_KEY", ADZUNA_APP_KEY),
+                       ("JOOBLE_API_KEY", JOOBLE_API_KEY)]:
+        if value.strip():
+            set_env(key, value)
+    set_env("JOBPILOT_MODEL", JOBPILOT_MODEL)
+    if llm_mode in ("api", "manual"):
+        s = load_settings()
+        s.llm_mode = llm_mode
+        save_settings(s)
+    return RedirectResponse("/settings?msg=Keys and AI settings saved.", status_code=303)
+
+
+@app.post("/settings/keys/clear")
+def settings_keys_clear(key: str = Form("")):
+    if key in ENV_KEYS:
+        set_env(key, "")
+    return RedirectResponse(f"/settings?msg=Removed {key}.", status_code=303)
+
+
+@app.post("/settings/profile")
+def settings_profile(
+    name: str = Form(""), email: str = Form(""), phone: str = Form(""),
+    location: str = Form(""), work_auth: str = Form(""), salary: str = Form(""),
+    remote: str = Form(""), notice: str = Form(""), skills: str = Form(""),
+    links: str = Form(""),
+):
+    data = {
+        "name": name.strip(), "email": email.strip(), "phone": phone.strip(),
+        "location": location.strip(),
+        "skills": [s.strip() for s in skills.replace("\n", ",").split(",") if s.strip()],
+        "links": [s.strip() for s in links.splitlines() if s.strip()],
+        "screening_defaults": {
+            "work_authorization": work_auth.strip(),
+            "salary_expectation": salary.strip(),
+            "remote_preference": remote.strip(),
+            "notice_period": notice.strip(),
+        },
+    }
+    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    (PROFILE_DIR / "profile.yaml").write_text(
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    load_config.cache_clear()
+    from ..config import load_profile
+
+    load_profile.cache_clear()
+    return RedirectResponse("/settings?msg=Profile saved.", status_code=303)
+
+
 # ---- search for jobs, with progress --------------------------------------
 
 @app.get("/discover", response_class=HTMLResponse)
@@ -899,6 +1132,20 @@ def add_job(
     ).ensure_id()
     upsert_job(job)
     save_job(job)
+
+    # Score it now — an unscored job gives the user nothing to judge it by.
+    if load_settings().is_manual:
+        return RedirectResponse(f"/job/{job.id}/manual/fit", status_code=303)
+    try:
+        fit_mod.score_job(job)
+        job.status = Status.scored
+        save_job(job)
+    except Exception as e:
+        from urllib.parse import quote
+
+        return RedirectResponse(
+            f"/job/{job.id}?err={quote('Saved, but scoring failed: ' + str(e)[:120])}",
+            status_code=303)
     return RedirectResponse(f"/job/{job.id}", status_code=303)
 
 

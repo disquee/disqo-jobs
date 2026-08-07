@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% set nav = 'settings' %}
+{% block title %}Settings · disqo jobs{% endblock %}
+{% block content %}
+<div class="page-head"><h1 class="page-title">Settings</h1></div>
+{% if msg %}<div class="note tone-ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="note tone-warn">{{ err }}</div>{% endif %}
+
+<div class="card">
+  <h3>What to search for</h3>
+  <p class="muted" style="font-size:0.85rem;">Each role can have its own location.
+    Adzuna and Jooble search the whole posting; Greenhouse and Lever match on the job
+    <em>title</em> only, so short phrases work best there.</p>
+  <form method="post" action="/settings/sources" style="margin-top:14px;">
+    <div id="roles">
+      {% for s in cfg.searches or [{'query':'','location':'Remote'}] %}
+        <div class="rolerow">
+          <input type="text" name="query" value="{{ s.query }}" placeholder="technical writer">
+          <input type="text" name="location" value="{{ s.location }}" placeholder="Remote">
+          <button type="button" class="btn danger tiny removerole">Remove</button>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button type="button" class="secondary" id="addRole">Add a role</button>
+    </div>
+    <div class="formgrid" style="margin-top:18px;">
+      <label class="field"><span>Greenhouse companies — one per line</span>
+        <textarea name="greenhouse" style="min-height:110px;">{{ cfg.ats.greenhouse | join('\n') }}</textarea></label>
+      <label class="field"><span>Lever companies — one per line</span>
+        <textarea name="lever" style="min-height:110px;">{{ cfg.ats.lever | join('\n') }}</textarea></label>
+    </div>
+    <div class="row" style="margin-top:14px;"><button type="submit">Save search targets</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>How the search behaves</h3>
+  <form method="post" action="/settings/behaviour">
+    <div class="formgrid">
+      <label class="field"><span>Fit threshold (0–100)</span>
+        <input type="text" name="fit_threshold" value="{{ cfg.fit_threshold }}"></label>
+      <label class="field"><span>Results per search</span>
+        <input type="text" name="results_per_search" value="{{ cfg.results_per_search }}"></label>
+      <label class="field"><span>Max assisted applies per day</span>
+        <input type="text" name="max_apply_per_day" value="{{ cfg.max_apply_per_day }}"></label>
+    </div>
+    <p class="muted" style="font-size:0.82rem; margin-top:8px;">
+      Jobs at or above the threshold are the ones offered for tailoring. If nothing ever
+      clears it, lower it — the number was calibrated for one model and yours may score
+      differently.
+    </p>
+    <div class="formgrid" style="margin-top:14px;">
+      <label class="field"><span>Skip titles containing — one per line</span>
+        <textarea name="exclude_title_keywords" style="min-height:90px;">{{ cfg.exclude_title_keywords | join('\n') }}</textarea></label>
+      <label class="field"><span>Skip these companies — one per line</span>
+        <textarea name="exclude_company" style="min-height:90px;">{{ cfg.exclude_company | join('\n') }}</textarea></label>
+    </div>
+    <div class="row" style="margin-top:14px;"><button type="submit">Save behaviour</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>AI and job-board keys</h3>
+  <p class="muted" style="font-size:0.85rem;">
+    Leave a field blank to keep what's already saved. Keys are stored in a
+    <code>.env</code> file readable only by you, and are never shown back to this page.
+  </p>
+  <form method="post" action="/settings/keys" style="margin-top:14px;">
+    <label class="field" style="max-width:340px;"><span>How AI runs</span>
+      <select name="llm_mode">
+        <option value="api" {{ 'selected' if not settings.is_manual }}>Use an API key</option>
+        <option value="manual" {{ 'selected' if settings.is_manual }}>No API key — copy and paste</option>
+      </select></label>
+    <div class="formgrid" style="margin-top:14px;">
+      {% for key, label in env_labels.items() %}
+        {% if key != 'JOBPILOT_DATA_DIR' %}
+          <label class="field">
+            <span>{{ label }}
+              {% if env[key] %}<em style="color:var(--ok);">· set</em>
+              {% else %}<em style="color:var(--muted);">· not set</em>{% endif %}</span>
+            {% if key == 'JOBPILOT_MODEL' %}
+              <input type="text" name="{{ key }}" placeholder="leave blank for the default">
+            {% else %}
+              <input type="password" name="{{ key }}" autocomplete="off"
+                     placeholder="{{ 'saved — type to replace' if env[key] else 'not set' }}">
+            {% endif %}
+          </label>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <p class="muted" style="font-size:0.82rem; margin-top:8px;">
+      Adzuna and Jooble are free to sign up for and widen the search a lot. Without them
+      only company career pages are checked.
+    </p>
+    <div class="row" style="margin-top:14px;"><button type="submit">Save keys</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>About you</h3>
+  <form method="post" action="/settings/profile">
+    <div class="formgrid">
+      <label class="field"><span>Full name</span><input type="text" name="name" value="{{ profile.name or '' }}"></label>
+      <label class="field"><span>Email</span><input type="text" name="email" value="{{ profile.email or '' }}"></label>
+      <label class="field"><span>Phone</span><input type="text" name="phone" value="{{ profile.phone or '' }}"></label>
+      <label class="field"><span>Where you live</span><input type="text" name="location" value="{{ profile.location or '' }}"></label>
+      <label class="field"><span>Work authorization</span><input type="text" name="work_auth" value="{{ screening.work_authorization or '' }}"></label>
+      <label class="field"><span>Salary expectation</span><input type="text" name="salary" value="{{ screening.salary_expectation or '' }}"></label>
+      <label class="field"><span>Remote preference</span><input type="text" name="remote" value="{{ screening.remote_preference or '' }}"></label>
+      <label class="field"><span>Notice period</span><input type="text" name="notice" value="{{ screening.notice_period or '' }}"></label>
+    </div>
+    <div class="formgrid" style="margin-top:14px;">
+      <label class="field"><span>Skills — comma separated</span>
+        <textarea name="skills" style="min-height:80px;">{{ (profile.skills or []) | join(', ') }}</textarea></label>
+      <label class="field"><span>Links — one per line</span>
+        <textarea name="links" style="min-height:80px;">{{ (profile.links or []) | join('\n') }}</textarea></label>
+    </div>
+    <div class="row" style="margin-top:14px;"><button type="submit">Save profile</button></div>
+  </form>
+  <p class="muted" style="margin-top:14px; font-size:0.85rem;">
+    Master resume: {{ '{:,}'.format(resume_chars) }} characters.
+    <a href="/setup?step=resume">Edit or replace it →</a>
+  </p>
+</div>
+
+<div class="card">
+  <h3>Where your data is stored</h3>
+  <p><code>{{ data_dir }}</code></p>
+  <p class="muted" style="font-size:0.83rem; margin-top:8px;">
+    To move it — onto a synced folder, say — set <code>JOBPILOT_DATA_DIR</code> before
+    starting, then move the existing folder there. It can't be changed while running,
+    since the database is open. <a href="/data">Backups and exports →</a>
+  </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var list = document.getElementById("roles");
+  function wire(scope) {
+    scope.querySelectorAll(".removerole").forEach(function (b) {
+      b.onclick = function () {
+        if (list.querySelectorAll(".rolerow").length > 1) b.closest(".rolerow").remove();
+        else b.closest(".rolerow").querySelectorAll("input").forEach(function (i) { i.value = ""; });
+      };
+    });
+  }
+  document.getElementById("addRole").addEventListener("click", function () {
+    var row = list.querySelector(".rolerow").cloneNode(true);
+    row.querySelectorAll("input").forEach(function (i, idx) { i.value = idx === 1 ? "Remote" : ""; });
+    list.appendChild(row); wire(row); row.querySelector("input").focus();
+  });
+  wire(list);
+})();
+</script>
+{% endblock %}

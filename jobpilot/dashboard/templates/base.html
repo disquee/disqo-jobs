@@ -202,6 +202,15 @@ input[type="text"]:focus, input[type="date"]:focus, select:focus {
 .formgrid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); }
 .formgrid .wide { grid-column:1 / -1; }
 .print-only { display:none; }
+.editrow { display:grid; gap:8px; margin-bottom:8px; align-items:center;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto; }
+.rowstory { grid-template-columns:80px minmax(0,1.4fr) minmax(0,1fr) auto; }
+@media (max-width: 720px) { .editrow, .rowstory { grid-template-columns:1fr; } }
+.qedit { padding:14px; border:1px solid var(--line-soft); border-radius:var(--radius);
+  margin-bottom:10px; }
+.rolerow { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;
+  gap:8px; margin-bottom:8px; align-items:center; }
+@media (max-width: 620px) { .rolerow { grid-template-columns:1fr; } }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
   overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
 .person { padding:14px; border:1px solid var(--line); border-radius:var(--radius);
@@ -441,6 +450,7 @@ thead th { position:sticky; top:49px; z-index:10; }
       <a href="/prep" class="{{ 'is-current' if nav == 'prep' else '' }}">Interview prep</a>
       <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Work search log</a>
       <a href="/data" class="{{ 'is-current' if nav == 'data' else '' }}">Your data</a>
+      <a href="/settings" class="{{ 'is-current' if nav == 'settings' else '' }}">Settings</a>
     </nav>
     {% block toolbar %}{% endblock %}
     <button class="iconbtn" id="themeToggle" aria-label="Toggle light or dark theme">

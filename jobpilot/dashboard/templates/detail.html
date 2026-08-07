@@ -3,6 +3,7 @@
 {% block title %}{{ job.title }} · disqo jobs{% endblock %}
 {% block content %}
 <p><a href="/jobs" class="muted">← Back to my jobs</a></p>
+{% if err %}<div class="note tone-warn" style="margin-top:12px;">{{ err }}</div>{% endif %}
 
 <div class="card" style="margin-top:12px;">
   <div class="row" style="justify-content:space-between; align-items:flex-start;">
@@ -61,6 +62,7 @@
     {% if prep_exists %}
       <a class="btn" href="/job/{{ job.id }}/prep" target="_blank" rel="noopener">Open prep →</a>
       <a class="btn secondary" href="/job/{{ job.id }}/prep/new">Edit who I'm meeting</a>
+      <a class="btn secondary" href="/job/{{ job.id }}/prep/edit">Edit questions &amp; notes</a>
     {% else %}
       <a class="btn" href="/job/{{ job.id }}/prep/new">Set up prep</a>
     {% endif %}

@@ -49,6 +49,37 @@ def has_api_key() -> bool:
     return bool(secret("ANTHROPIC_API_KEY"))
 
 
+ENV_KEYS = {
+    "ANTHROPIC_API_KEY": "AI provider key",
+    "ADZUNA_APP_ID": "Adzuna app ID",
+    "ADZUNA_APP_KEY": "Adzuna app key",
+    "JOOBLE_API_KEY": "Jooble API key",
+    "JOBPILOT_MODEL": "Model override",
+    "JOBPILOT_DATA_DIR": "Where your data is stored",
+}
+
+
+def set_env(key: str, value: str) -> None:
+    """Write one variable to .env and make it live for this process."""
+    value = (value or "").strip()
+    lines: list[str] = []
+    if ENV_PATH.exists():
+        lines = [ln for ln in ENV_PATH.read_text(encoding="utf-8").splitlines()
+                 if not ln.startswith(f"{key}=")]
+    if value:
+        lines.append(f"{key}={value}")
+        os.environ[key] = value
+    else:
+        os.environ.pop(key, None)
+    ENV_PATH.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+    ENV_PATH.chmod(0o600)
+
+
+def env_status() -> dict[str, bool]:
+    """Which keys are set, without ever handing the values back to a page."""
+    return {k: bool(secret(k)) for k in ENV_KEYS}
+
+
 def set_api_key(key: str) -> None:
     """Persist a key to .env and make it live for this process.
 
