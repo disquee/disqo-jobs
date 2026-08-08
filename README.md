@@ -121,3 +121,20 @@ terminal for them.
 - Jooble: https://jooble.org/api/about  → `JOOBLE_API_KEY`
 - Greenhouse/Lever boards need no key; pick companies during Setup, or later
   under **Settings → What to search for**.
+
+## Licence
+
+Copyright © 2026 Eric Disque. Released under the
+[GNU Affero General Public License v3.0](LICENSE).
+
+Use it, change it, pass it to a friend — free, for as long as you like. The one
+thing the licence asks is that if you run a modified copy as a service other
+people use over a network, you publish your changes under the same terms. That's
+deliberate: this was built so that someone job-hunting without money or contacts
+has the tools that normally cost both, and it should stay that way rather than
+becoming somebody's subscription.
+
+Contributions are welcome and go through a
+[contributor agreement](CLA.md) that assigns copyright to the project owner, so
+those terms remain enforceable. See [CONTRIBUTING.md](CONTRIBUTING.md) — bug
+reports and ideas need no agreement at all.
