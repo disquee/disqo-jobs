@@ -50,6 +50,9 @@
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.22, 1, 0.36, 1); --dur: 180ms;
   --shadow-1: 0 1px 0 rgba(11, 11, 11, 0.06);
+  /* The top bar is the same height on every page, so a sticky table header
+     knows exactly where to stop. */
+  --topbar-h: 53px;
 
 }
 :root[data-theme="dark"] {
@@ -301,6 +304,52 @@ button[data-busy] { opacity:0.65; pointer-events:none; }
   padding:7px 10px; border:1px solid var(--line); border-radius:var(--radius-sm);
   cursor:pointer; }
 .check:hover { background:var(--surface-2); border-color:var(--accent); }
+
+/* Housekeeping, folded away directly above the table it cleans. Below the table
+   would bury it: a full queue is a thousand rows and ninety-odd screens deep.
+   Shut by default — it deletes things, and it shouldn't outrank the queue. */
+.tidy { border:1px solid var(--line-soft); border-radius:var(--radius);
+  background:var(--surface); margin-bottom:14px; }
+.tidy > summary { display:flex; gap:8px; align-items:baseline; cursor:pointer;
+  padding:9px 14px; font-size:0.86rem; font-weight:600; color:var(--ink);
+  list-style:none; border-radius:var(--radius); }
+.tidy > summary::-webkit-details-marker { display:none; }
+/* Drawn, not typed: the ▸ glyph renders too faint to read as a control. */
+.tidy > summary::before { content:""; align-self:center; width:0; height:0;
+  border-left:6px solid var(--muted); border-top:4.5px solid transparent;
+  border-bottom:4.5px solid transparent;
+  transition:transform var(--dur) var(--ease); }
+.tidy[open] > summary::before { transform:rotate(90deg); }
+.tidy > summary:hover { background:var(--surface-2); }
+.tidy > summary:focus-visible { outline:2px solid var(--brand-amber); outline-offset:-2px; }
+.tidy .tidybody { padding:2px 14px 14px; }
+
+/* Age picker for clearing out old jobs. A dropdown here is the one control on
+   the page that draws itself like the operating system instead of the app, and
+   it hides the counts until you open it. Chips show every choice at once, in
+   the same vocabulary as the nav and the status tags. */
+.agepick { border:0; padding:0; margin:0; min-width:0; }
+.agepick legend { font-size:0.72rem; font-weight:650; letter-spacing:0.02em;
+  text-transform:uppercase; color:var(--muted); padding:0; margin-bottom:8px; }
+.agechips { display:flex; gap:8px; flex-wrap:wrap; }
+.agechip { position:relative; display:grid; gap:1px; cursor:pointer;
+  padding:7px 12px; border:1px solid var(--line); border-radius:var(--radius-sm);
+  background:var(--surface); line-height:1.3;
+  transition:background var(--dur) var(--ease); }
+.agechip input { position:absolute; width:1px; height:1px; opacity:0; margin:0; }
+.agechip:hover { background:var(--surface-2); }
+/* Filled, not underlined: an underline is how this app marks the page you're on,
+   which is too quiet next to a hover state when it's the answer to a question. */
+.agechip:has(:checked) { background:var(--brand-amber); }
+.agechip:has(:focus-visible) { outline:2px solid var(--ink); outline-offset:2px; }
+.agechip .ageval { font-size:0.86rem; font-weight:600; color:var(--ink); white-space:nowrap; }
+.agechip .agecount { font-size:0.76rem; color:var(--muted); white-space:nowrap;
+  font-family:var(--mono); font-variant-numeric:tabular-nums; }
+/* Amber is a fill, so text on it is always near-black — in both themes. */
+.agechip:has(:checked) .ageval, .agechip:has(:checked) .agecount { color:#0B0B0B; }
+/* Nothing that old: still shown, so the picker doesn't change shape as you use it. */
+.agechip.is-empty { border-color:var(--line-soft); }
+.agechip.is-empty .ageval { color:var(--muted); font-weight:500; }
 .divider { display:flex; align-items:center; gap:12px; margin:22px 0;
   color:var(--muted); font-size:0.8rem; text-transform:uppercase;
   letter-spacing:0.05em; }
@@ -382,6 +431,16 @@ a.tag-plain:hover { border-color:var(--line); background:var(--surface-2);
 /* Amber marks state without swallowing the text — a rule, not a fill. */
 .tag-plain.is-marked { box-shadow:inset 0 -3px 0 var(--brand-amber); }
 .tag-plain.is-done { border-color:var(--ok); color:var(--ok); }
+/* Removing a row sits next to opening it, so it wears the same shape and only
+   turns red on approach — a destructive option, not a destructive-looking table. */
+.rowacts { display:flex; gap:6px; align-items:center; }
+button.tag-plain { cursor:pointer; font-weight:500; }
+button.tag-plain.is-danger { color:var(--muted); }
+button.tag-plain.is-danger:hover { background:var(--danger-bg); border-color:var(--danger);
+  color:var(--danger); }
+/* A mark rather than the word: spelled out, this column pushed the table wider
+   than the page and the button got clipped at the card's edge. */
+button.tag-plain.is-remove { padding:2px 8px; font-size:0.8rem; line-height:1.5; }
 
 /* Fit: the bar is the score, so 82 is 82% of the cell. */
 td.fit { position:relative; padding-bottom:14px; }
@@ -391,9 +450,27 @@ td.fit { position:relative; padding-bottom:14px; }
 .fitbar > span { display:block; height:100%; background:var(--brand-amber); }
 td.fit.lo .fitbar > span { background:var(--muted); }
 
-/* Header stays put while a long table scrolls. */
+/* Header stays put while a long table scrolls. Nothing between the header and
+   the page may be a scroll container, or the header sticks to that box instead
+   of the viewport — it would sit 53px down the card, over the first row, with a
+   blank band above it. `clip` rounds the card's corners without scrolling. */
+.tablecard { overflow:clip; position:relative; }
 .tablecard .scroll { overflow:visible; }
-thead th { position:sticky; top:49px; z-index:10; }
+thead th { position:sticky; top:var(--topbar-h); z-index:10; }
+
+/* A table too wide for the window used to be cut off with no way to reach the
+   rest of the columns. Now it scrolls sideways. That box is a scroll container,
+   so it can't also anchor a page-sticky header — inside it the header travels
+   with the table. Only tables that don't fit pay that price; is-wide is set by
+   measurement, not by a breakpoint guess. */
+.tablecard .scroll.is-wide { overflow-x:auto; }
+.tablecard .scroll.is-wide thead th { position:static; }
+/* Says "there's more this way" where a macOS overlay scrollbar says nothing. */
+.tablecard.is-wide::after { content:""; position:absolute; inset:0 0 0 auto; width:34px;
+  pointer-events:none; background:linear-gradient(to right, transparent, var(--surface));
+  opacity:1; transition:opacity var(--dur) var(--ease); }
+.tablecard.is-wide.at-end::after { opacity:0; }
+
 @media (max-width: 900px) {
   .tablecard .scroll { overflow-x:auto; }
   thead th { position:static; }
@@ -430,7 +507,11 @@ thead th { position:sticky; top:49px; z-index:10; }
   body { font-size:10pt; background:#fff; }
   .wrap { max-width:none; padding:0; }
   .card { border:0; padding:0 0 10pt; margin:0 0 10pt; }
-  .tablecard { border:1px solid #999; border-radius:0; }
+  /* Paper has no scrollbar and no sticky anything: let every column print. */
+  .tablecard { border:1px solid #999; border-radius:0; overflow:visible; }
+  .tablecard .scroll, .tablecard .scroll.is-wide { overflow:visible; }
+  .tablecard.is-wide::after { display:none; }
+  thead th { position:static; }
   th, td { padding:5pt 6pt; font-size:9pt; }
   thead th { background:#eee !important; -webkit-print-color-adjust:exact; }
   tbody tr { break-inside:avoid; }
@@ -445,14 +526,23 @@ thead th { position:sticky; top:49px; z-index:10; }
     <span class="brand"><span class="brand-name">DISQO JOBS</span></span>
     <nav class="navlinks">
       <a href="/" class="{{ 'is-current' if nav == 'home' else '' }}">Today</a>
-      <a href="/jobs" class="{{ 'is-current' if nav == 'queue' else '' }}">My jobs</a>
-      <a href="/discover" class="{{ 'is-current' if nav == 'discover' else '' }}">Find jobs</a>
-      <a href="/prep" class="{{ 'is-current' if nav == 'prep' else '' }}">Interview prep</a>
-      <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Work search log</a>
-      <a href="/data" class="{{ 'is-current' if nav == 'data' else '' }}">Your data</a>
+      <a href="/jobs" class="{{ 'is-current' if nav == 'queue' else '' }}">Jobs</a>
+      <a href="/prep" class="{{ 'is-current' if nav == 'prep' else '' }}">Prep</a>
+      <a href="/applied" class="{{ 'is-current' if nav == 'applied' else '' }}">Search log</a>
+      <a href="/data" class="{{ 'is-current' if nav == 'data' else '' }}">Data</a>
       <a href="/settings" class="{{ 'is-current' if nav == 'settings' else '' }}">Settings</a>
     </nav>
-    {% block toolbar %}{% endblock %}
+    <!-- Same control in the same place on every page. On My jobs it filters as
+         you type; anywhere else it takes you to My jobs with the search run. -->
+    <form class="search-wrap" action="/jobs" method="get" role="search">
+      <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+           stroke-width="1.6" aria-hidden="true">
+        <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/>
+      </svg>
+      <input class="search" id="search" name="q" type="search" autocomplete="off"
+             value="{{ q or '' }}"
+             placeholder="Search title, company, location…" aria-label="Search jobs">
+    </form>
     <button class="iconbtn" id="themeToggle" aria-label="Toggle light or dark theme">
       <svg id="themeIcon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
            stroke-width="1.5" aria-hidden="true"></svg>
@@ -473,6 +563,48 @@ thead th { position:sticky; top:49px; z-index:10; }
   </div>
 </footer>
 
+<script>
+// Sticky table headers stop just below the top bar. The CSS default is right
+// for a one-line bar; measure it so a bar that wraps on a narrow window doesn't
+// end up covering the header it's supposed to sit above.
+(function () {
+  var bar = document.querySelector(".topbar");
+  if (!bar || !window.ResizeObserver) return;
+  new ResizeObserver(function () {
+    document.documentElement.style.setProperty("--topbar-h", bar.offsetHeight + "px");
+  }).observe(bar);
+})();
+
+// Any form carrying data-confirm asks first. An attribute rather than an inline
+// onsubmit, so a job title with an apostrophe in it can't break the handler.
+document.addEventListener("submit", function (e) {
+  var msg = e.target.dataset && e.target.dataset.confirm;
+  if (msg && !confirm(msg)) e.preventDefault();
+}, true);
+
+// A table with more columns than the window has room for scrolls sideways
+// instead of losing them off the edge. Measured per table, so one that fits
+// keeps its page-sticky header.
+(function () {
+  if (!window.ResizeObserver) return;
+  [].forEach.call(document.querySelectorAll(".tablecard"), function (card) {
+    var box = card.querySelector(".scroll"), table = box && box.querySelector("table");
+    if (!table) return;
+    function measure() {
+      var wide = table.offsetWidth > box.clientWidth + 1;
+      card.classList.toggle("is-wide", wide);
+      box.classList.toggle("is-wide", wide);
+      card.classList.toggle("at-end",
+        !wide || box.scrollLeft + box.clientWidth >= box.scrollWidth - 1);
+    }
+    // Watch the card, not the scrolling box: a scrollbar appearing inside the
+    // box resizes it, and the observer would set itself off in a loop.
+    new ResizeObserver(measure).observe(card);
+    box.addEventListener("scroll", measure, { passive: true });
+    measure();
+  });
+})();
+</script>
 <script>
 // Theme: same contract as the prep page — follow the system, remember an override.
 (function () {

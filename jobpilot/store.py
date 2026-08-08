@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
-from typing import Iterator, Optional
+from typing import Iterable, Iterator, Optional
 
 from .config import DB_PATH, OUTPUT_DIR, ROOT
 from .models import Application, Job, Status, WorkSearchActivity
@@ -143,6 +143,19 @@ def get_application(job_id: str) -> Optional[Application]:
     return Application.model_validate_json(row["data"]) if row else None
 
 
+def delete_jobs(job_ids: Iterable[str]) -> int:
+    """Drop jobs and their generated applications. Work-search activities are
+    deliberately left alone — they're the record of a search, not of a listing,
+    and an agency may ask for them long after the posting is gone."""
+    rows = [(job_id,) for job_id in job_ids]
+    if not rows:
+        return 0
+    with _conn() as c:
+        c.executemany("DELETE FROM applications WHERE job_id = ?", rows)
+        c.executemany("DELETE FROM jobs WHERE id = ?", rows)
+    return len(rows)
+
+
 def counts_by_status() -> dict[str, int]:
     with _conn() as c:
         rows = c.execute("SELECT status, COUNT(*) n FROM jobs GROUP BY status").fetchall()
@@ -190,6 +203,15 @@ def list_activities(
     with _conn() as c:
         rows = c.execute(sql, params).fetchall()
     return [WorkSearchActivity.model_validate_json(r["data"]) for r in rows]
+
+
+def job_ids_with_activity() -> set[str]:
+    """One query instead of one per job, for checks across the whole queue."""
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT DISTINCT job_id FROM activities WHERE job_id IS NOT NULL"
+        ).fetchall()
+    return {r["job_id"] for r in rows}
 
 
 def activity_for_job(job_id: str) -> Optional[WorkSearchActivity]:

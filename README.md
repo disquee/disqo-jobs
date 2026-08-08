@@ -11,35 +11,80 @@ application to a CSV.
 > control to you for the final submit. This keeps your accounts safe and your
 > applications high quality.
 
-## Setup
+## Install
+
+Double-click the launcher in the disqo jobs folder:
+
+- **macOS / Linux** — `start-disqo-jobs.command`
+- **Windows** — `start-disqo-jobs.bat`
+
+That's the whole install. The first run builds an environment and installs the
+app, which takes a couple of minutes; after that it starts straight up. Either
+way it opens <http://127.0.0.1:8000> in your browser. Leave the window open
+while you're using disqo jobs — closing it quits.
+
+The one thing you need beforehand is **Python 3.10 or newer**. If it's missing,
+the launcher says so and points you at [python.org](https://www.python.org/downloads/).
+
+### First run
+
+disqo jobs opens on **Setup** and stays there until you're done. It walks you
+through AI access, your resume, a few details about you, and what to look for.
+There are no files to copy and no keys to paste into a terminal. Everything you
+set there can be changed later under **Settings**.
+
+Your resume, your jobs and your log live in a folder outside the app, so
+updating or deleting disqo jobs never touches them:
+
+| | |
+|---|---|
+| macOS | `~/Library/Application Support/jobpilot` |
+| Windows | `%APPDATA%\jobpilot` |
+| Linux | `~/.local/share/jobpilot` |
+
+Set `JOBPILOT_DATA_DIR` to put that somewhere else — a synced folder, say. The
+**Data** page shows the current location, what's in it, and the backups.
+
+## Install for development
 
 ```bash
-cd disqo jobs
-python -m venv .venv && source .venv/bin/activate
+git clone <this repo> && cd jobpilot
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-playwright install chromium            # for assisted apply
-# WeasyPrint needs native libs for PDF output (macOS):
-#   brew install pango gdk-pixbuf libffi
-cp .env.example .env                   # fill in ANTHROPIC_API_KEY + job API keys
+disqo-jobs serve                          # http://127.0.0.1:8000
 ```
 
-Then set up your profile (the real files are gitignored so your PII stays local):
+Two extras, each needed only by the feature next to it:
 
 ```bash
-cp profile/profile.example.yaml profile/profile.yaml
-cp profile/resume_master.example.md profile/resume_master.md
+playwright install chromium               # assisted apply
+brew install pango gdk-pixbuf libffi      # WeasyPrint, for PDF resumes and covers
 ```
 
-- `profile/resume_master.md` — your real master resume (source of truth)
-- `profile/profile.yaml` — skills, experience, screening defaults
-- `config.yaml` — searches, target ATS companies, fit threshold
+Run the tests with `pip install -e '.[dev]' && pytest`.
 
-Secrets (`ANTHROPIC_API_KEY`, job API keys) can live in `.env` or, preferably, in
-the macOS Keychain — they're resolved from the environment first, then Keychain:
+Templates are re-read on every request, so an edit shows up on refresh. Python
+modules are not — a change to `server.py` or `store.py` needs a restart, and a
+half-reloaded app fails as a 500 rather than as a missing feature.
+
+### Secrets outside the app
+
+Setup writes keys to `.env` for you, and that's the path that works on every OS.
+If you'd rather keep them elsewhere, anything already in the environment wins,
+and on macOS the Keychain is checked after that:
 
 ```bash
 security add-generic-password -a "$USER" -s ANTHROPIC_API_KEY -w 'sk-ant-...'
 ```
+
+### Files Setup writes for you
+
+Editable by hand afterwards if you prefer; the real ones are gitignored so your
+details stay local.
+
+- `profile/resume_master.md` — your master resume, the source everything else is cut from
+- `profile/profile.yaml` — skills, experience, screening defaults
+- `config.yaml` — searches, target ATS companies, fit threshold
 
 ## Use
 
@@ -59,6 +104,9 @@ discover → score (Claude) → tailor (resume/cover/answers) → review (you)
 
 ## Output
 
+Everything below lands in the data folder listed under [First run](#first-run),
+not in the app folder.
+
 `output/applications.csv` columns: `date_applied, job_title, company, location,
 posting_text, apply_url, fit_score, resume_path, cover_letter_path, status`.
 
@@ -66,6 +114,10 @@ Tailored PDFs land in `output/resumes/` and `output/cover_letters/`.
 
 ## Get API keys (free tiers)
 
+Job-board keys go under **Settings → AI and job-board keys**; you don't need a
+terminal for them.
+
 - Adzuna: https://developer.adzuna.com/  → `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`
 - Jooble: https://jooble.org/api/about  → `JOOBLE_API_KEY`
-- Greenhouse/Lever boards need no key; list company slugs in `config.yaml`.
+- Greenhouse/Lever boards need no key; pick companies during Setup, or later
+  under **Settings → What to search for**.
