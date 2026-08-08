@@ -64,7 +64,8 @@ your signature. One agreement covers every contribution you make afterwards.
 
 ## Why this exists
 
-disqo jobs is licensed [AGPL-3.0](LICENSE), which keeps it free for anyone who
+disqo jobs is licensed under the [GNU Affero General Public License v3.0
+(AGPL-3.0)](LICENSE), which keeps it free for anyone who
 wants to use it and makes it unworkable as a closed paid service. That only holds
 if the licence can be enforced and, if it ever needs to change, changed — and
 both require a single copyright holder. If ownership were split across everyone

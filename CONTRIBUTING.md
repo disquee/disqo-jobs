@@ -15,8 +15,8 @@ Both are real contributions and neither needs an agreement.
 ## Code
 
 Pull requests need a one-time agreement first: [CLA.md](CLA.md), which assigns
-copyright in your contribution to the project's owner. It's there so the AGPL
-terms stay enforceable — the reasoning is at the bottom of that file. Sign by
+copyright in your contribution to the project's owner. It's there so the terms
+of the GNU AGPL-3.0 stay enforceable — the reasoning is at the bottom of that file. Sign by
 adding yourself to [CONTRIBUTORS.md](CONTRIBUTORS.md) in your first pull request.
 
 ### Setting up
