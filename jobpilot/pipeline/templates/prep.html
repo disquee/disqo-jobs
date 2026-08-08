@@ -166,7 +166,7 @@ em { font-style: italic; color: var(--muted); }
 }
 .timer.is-running .timer-display { color: var(--accent-ink); }
 .timer.is-low .timer-display { color: var(--warn); }
-.timer.is-done .timer-display { color: var(--p-sofia); }
+.timer.is-done .timer-display { color: var(--accent-ink); }
 .timer-presets { display: flex; gap: 2px; }
 
 .iconbtn {
@@ -230,9 +230,11 @@ em { font-style: italic; color: var(--muted); }
 .navlink.is-dim { opacity: 0.42; }
 .navlink[aria-current="true"] { background: var(--accent-bg); color: var(--accent-ink); font-weight: 600; }
 .navdot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: var(--muted); }
-.navdot[data-p="sofia"] { background: var(--p-sofia); }
-.navdot[data-p="laura"] { background: var(--p-laura); }
-.navdot[data-p="ai"]    { background: var(--p-ai); }
+/* One colour per panel, set from the panel's position in the loop. The three
+   rules here were keyed to names from one specific loop and pointed at
+   --p-sofia/--p-laura/--p-ai, which no longer exist, so every dot fell back to
+   grey. */
+.navdot[style*="--dot"] { background: var(--dot); }
 .navcount {
   margin-left: auto; font-family: var(--mono); font-size: 0.7rem;
   color: var(--muted); font-variant-numeric: tabular-nums;
@@ -1129,13 +1131,26 @@ let goTo = function (secId, itemId) {
   });
 };
 
+// A stable colour per panel, by its position in the loop, so the nav dots and
+// the card headers agree without anyone naming a palette per interviewer.
+const DOT_COLORS = ["#8A5A00", "#1F6B45", "#2F5FA8", "#8A2F6B", "#6B4A00"];
+function paintDot(dot, panelId) {
+  const i = Object.keys(PANELS).indexOf(panelId);
+  if (i >= 0) dot.style.setProperty("--dot", DOT_COLORS[i % DOT_COLORS.length]);
+  return dot;
+}
+
 function renderTracker() {
   const wrap = el("div", "tracker");
   const scroll = el("div", "tracker-scroll");
   const table = el("table");
+  // One column per panel in this loop. These were once three hardcoded names
+  // from the loop the page was first written for, which threw on every other
+  // prep file and took the whole page down with it.
+  const PANEL_IDS = Object.keys(PANELS);
   table.innerHTML =
     "<thead><tr><th>Story</th>" +
-    '<th class="st-cell">Sofia</th><th class="st-cell">Laura</th><th class="st-cell">AI panel</th>' +
+    PANEL_IDS.map(p => '<th class="st-cell">' + esc(PANELS[p].name) + "</th>").join("") +
     "</tr></thead>";
   const tb = el("tbody");
 
@@ -1164,7 +1179,7 @@ function renderTracker() {
     }
     tr.append(th);
 
-    ["sofia", "laura", "ai"].forEach(p => {
+    PANEL_IDS.forEach(p => {
       const td = el("td", "st-cell");
       const btn = el("button", "st-toggle", CHECK);
       btn.type = "button";
@@ -1251,7 +1266,7 @@ function renderPeople(sec) {
     const card = el("div", "pcard");
     const head = el("div", "pcard-head");
     const when = el("div", "pcard-when");
-    const dot = el("span", "navdot"); dot.dataset.p = c.panel;
+    const dot = paintDot(el("span", "navdot"), c.panel); dot.dataset.p = c.panel;
     when.append(dot, document.createTextNode(c.when));
     head.append(when);
     head.append(el("div", "pcard-name", esc(p.name)));
@@ -1478,7 +1493,11 @@ SECTIONS.forEach((sec, idx) => {
   btn.type = "button";
   btn.dataset.target = sec.id;
   let inner = "";
-  if (sec.panel) inner += '<span class="navdot" data-p="' + sec.panel + '"></span>';
+  if (sec.panel) {
+    const di = Object.keys(PANELS).indexOf(sec.panel);
+    const dc = di >= 0 ? DOT_COLORS[di % DOT_COLORS.length] : "var(--muted)";
+    inner += '<span class="navdot" data-p="' + sec.panel + '" style="--dot:' + dc + '"></span>';
+  }
   inner += "<span>" + esc(sec.nav) + "</span>";
   if (sec.kind === "qa" || sec.kind === "checklist") inner += '<span class="navcount" data-count="' + sec.id + '"></span>';
   btn.innerHTML = inner;
