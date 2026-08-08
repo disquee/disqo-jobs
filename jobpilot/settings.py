@@ -19,16 +19,29 @@ SETTINGS_PATH = ROOT / "settings.json"
 ENV_PATH = ROOT / ".env"
 
 
+#: Every way the app can reach a model. Order is the order they're offered.
+LLM_MODES = ("api", "cli", "local", "manual")
+
+
 class Settings(BaseModel):
     # "api"    -- call the provider directly with a key
+    # "cli"    -- shell out to the Claude Code binary (a subscription, no key)
+    # "local"  -- an OpenAI-compatible server on this machine (Ollama, LM Studio…)
     # "manual" -- render prompts for the user to paste into a chat UI and paste back
     llm_mode: str = "api"
     model: Optional[str] = None
+    local_base_url: str = ""
+    local_model: str = ""
     onboarded: bool = False
 
     @property
     def is_manual(self) -> bool:
         return self.llm_mode == "manual"
+
+    @property
+    def is_automatic(self) -> bool:
+        """Anything that can answer without the user carrying text around."""
+        return self.llm_mode in ("api", "cli", "local")
 
 
 def load_settings() -> Settings:
@@ -107,24 +120,74 @@ def set_api_key(key: str) -> None:
         pass
 
 
-def check_api_key() -> tuple[bool, str]:
-    """Round-trip a tiny completion. Returns (ok, message) for the UI."""
-    if not has_api_key():
+def claude_cli_path() -> Optional[str]:
+    """Where the Claude Code binary is, or None. Used to offer the mode at all."""
+    import shutil
+
+    from .llm import CLAUDE_BIN
+
+    return shutil.which(CLAUDE_BIN) or (CLAUDE_BIN if os.path.exists(CLAUDE_BIN) else None)
+
+
+def local_models(base_url: str = "") -> list[str]:
+    """Model names a local server is offering, or [] if it isn't reachable.
+
+    Saves the user typing a name they have to get exactly right.
+    """
+    import httpx
+
+    from .llm import LOCAL_BASE_URL_DEFAULT
+
+    base = (base_url or LOCAL_BASE_URL_DEFAULT).rstrip("/")
+    try:
+        resp = httpx.get(f"{base}/models", timeout=4)
+        resp.raise_for_status()
+        return sorted(m.get("id", "") for m in resp.json().get("data", []) if m.get("id"))
+    except Exception:
+        return []
+
+
+def check_llm() -> tuple[bool, str]:
+    """Round-trip a tiny completion in whatever mode is set. (ok, message)."""
+    settings = load_settings()
+    mode = settings.llm_mode
+
+    if mode == "manual":
+        return True, "Copy-and-paste mode — nothing to test."
+    if mode == "api" and not has_api_key():
         return False, "No API key set."
+    if mode == "cli" and not claude_cli_path():
+        return False, ("Claude Code isn't installed, or isn't on PATH. Install it, "
+                       "or set JOBPILOT_CLAUDE_BIN to its full path.")
+    if mode == "local" and not settings.local_model:
+        return False, "Pick which local model to use."
+
     try:
         from .llm import complete
 
         reply = complete("Reply with the single word: ready", max_tokens=16)
-        if "ready" in reply.lower():
-            return True, "Key works — a test request came back."
-        return True, f"Key works. Model replied: {reply[:60]}"
-    except Exception as e:  # surface the provider's own wording, trimmed
+    except Exception as e:  # surface the backend's own wording, trimmed
         msg = str(e)
-        if "authentication" in msg.lower() or "401" in msg:
-            return False, "That key was rejected. Check for a typo or a revoked key."
-        if "credit" in msg.lower() or "billing" in msg.lower() or "quota" in msg.lower():
-            return False, "The key is valid but the account has no credit available."
-        return False, f"Couldn't reach the provider: {msg[:160]}"
+        low = msg.lower()
+        if mode == "api":
+            if "authentication" in low or "401" in msg:
+                return False, "That key was rejected. Check for a typo or a revoked key."
+            if any(w in low for w in ("credit", "billing", "quota")):
+                return False, "The key is valid but the account has no credit available."
+        if mode == "cli" and ("login" in low or "auth" in low):
+            return False, "Claude Code is installed but not logged in. Run `claude` once in a terminal."
+        return False, f"Couldn't get an answer: {msg[:180]}"
+
+    where = {"api": "Your key works", "cli": "Claude Code works",
+             "local": "Your local model works"}[mode]
+    if "ready" in reply.lower():
+        return True, f"{where} — a test request came back."
+    return True, f"{where}. It replied: {reply[:60]}"
+
+
+def check_api_key() -> tuple[bool, str]:
+    """Back-compat alias from when an API key was the only way in."""
+    return check_llm()
 
 
 def profile_ready() -> bool:

@@ -44,6 +44,28 @@ def example_profile(tmp_path):
         config.load_master_resume.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def api_mode():
+    """Pin the LLM backend to the API path for the whole suite.
+
+    complete() dispatches on the developer's own settings.json, so without this
+    a machine set to a local model or Claude Code would run these tests against
+    a real backend — or fail, since the fakes stub the Anthropic client only.
+    A test that wants another backend patches _mode_and_settings itself.
+
+    Restored by hand rather than via monkeypatch, for the same teardown-ordering
+    reason spelled out in example_profile above.
+    """
+    import jobpilot.llm as llm
+
+    original = llm._mode_and_settings
+    llm._mode_and_settings = lambda: ("api", None)
+    try:
+        yield
+    finally:
+        llm._mode_and_settings = original
+
+
 @pytest.fixture
 def tmp_db(tmp_path, monkeypatch):
     """Point the store at a throwaway DB and initialize the schema."""
