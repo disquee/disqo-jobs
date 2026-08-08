@@ -34,6 +34,30 @@
           </span>
         </label>
         <label class="choice">
+          <input type="radio" name="llm_mode" value="cli">
+          <span>
+            <strong>Use Claude Code</strong>
+            {% if claude_found %}<span class="pill tone-ok">found on this computer</span>
+            {% else %}<span class="pill">not installed yet</span>{% endif %}
+            <span class="muted">If you already pay for Claude, disqo jobs can ask it
+              through the <code>claude</code> command instead of a key — nothing more to
+              buy. Slower than a key, a few seconds per job, and it needs Claude Code
+              installed and signed in.</span>
+          </span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="llm_mode" value="local">
+          <span>
+            <strong>Run a model on this computer</strong>
+            {% if local_found %}<span class="pill tone-ok">server responding</span>
+            {% else %}<span class="pill">no server found</span>{% endif %}
+            <span class="muted">Works with Ollama, LM Studio or llama.cpp. Free forever
+              and truly private — the job posting and your resume never leave this
+              machine. Slowest of the four, and the writing is only as good as the model
+              you run.</span>
+          </span>
+        </label>
+        <label class="choice">
           <input type="radio" name="llm_mode" value="manual">
           <span>
             <strong>No API key — copy and paste</strong>
@@ -47,6 +71,72 @@
       </form>
       <p class="muted" style="margin-top:14px; font-size:0.82rem;">
         You can switch between these later.
+      </p>
+    </div>
+
+  {# ---------------------------------------------------------------- #}
+  {% elif step == 'key' and settings.llm_mode == 'cli' %}
+    <div class="card">
+      <h2 class="page-title">Use Claude Code</h2>
+      {% if claude_found %}
+        <p class="muted" style="margin-top:8px;">Found at <code>{{ claude_found }}</code>.
+          If you're signed in, there's nothing else to set up.</p>
+      {% else %}
+        <div class="note tone-warn" style="margin-top:12px;">
+          Can't find the <code>claude</code> command. Install Claude Code, then come back —
+          or set <code>JOBPILOT_CLAUDE_BIN</code> to its full path.
+        </div>
+      {% endif %}
+      <p class="muted" style="margin-top:12px; font-size:0.85rem;">
+        Each request goes through Claude Code with its tools switched off, so a job
+        posting can only be read — never used to touch your files.
+      </p>
+      <form method="post" action="/setup/key" style="margin-top:14px;">
+        <div class="row">
+          <button type="submit">Test it</button>
+          <a class="btn secondary" href="/setup?step=resume">Skip for now</a>
+        </div>
+      </form>
+    </div>
+
+  {# ---------------------------------------------------------------- #}
+  {% elif step == 'key' and settings.llm_mode == 'local' %}
+    <div class="card">
+      <h2 class="page-title">Point at your local model</h2>
+      {% if local_models %}
+        <p class="muted" style="margin-top:8px;">Your server is offering
+          {{ local_models|length }} model{{ '' if local_models|length == 1 else 's' }}.
+          Pick one — bigger writes better, smaller runs faster.</p>
+      {% else %}
+        <div class="note tone-warn" style="margin-top:12px;">
+          Nothing answered at that address. Start Ollama (<code>ollama serve</code>),
+          LM Studio's server, or llama.cpp, then reload this page.
+        </div>
+      {% endif %}
+      <form method="post" action="/setup/local">
+        <div class="formgrid" style="max-width:560px; margin-top:14px;">
+          <label class="field"><span>Server address</span>
+            <input type="text" name="base_url" value="{{ local_base_url }}"></label>
+          <label class="field"><span>Model</span>
+            {% if local_models %}
+              <select name="local_model">
+                {% for m in local_models %}
+                  <option value="{{ m }}" {{ 'selected' if m == settings.local_model }}>{{ m }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="text" name="local_model" value="{{ settings.local_model }}"
+                     placeholder="llama3.1:8b">
+            {% endif %}
+          </label>
+        </div>
+        <div class="row" style="margin-top:14px;">
+          <button type="submit">Save and test</button>
+          <a class="btn secondary" href="/setup?step=resume">Skip for now</a>
+        </div>
+      </form>
+      <p class="muted" style="margin-top:14px; font-size:0.82rem;">
+        Nothing is sent off this computer in this mode — not the posting, not your resume.
       </p>
     </div>
 

@@ -296,6 +296,9 @@ button[data-busy] { opacity:0.65; pointer-events:none; }
 .choice input { margin-top:3px; }
 .choice > span { display:grid; gap:4px; font-size:0.92rem; }
 .choice .muted { font-size:0.85rem; }
+/* A grid item fills its column, so a status pill would stretch the whole row
+   and stop reading as a badge. */
+.choice .pill { justify-self:start; }
 .howto { margin:0; padding-left:20px; display:grid; gap:7px; color:var(--ink-2);
   font-size:0.9rem; }
 .checkgrid { display:grid; gap:7px; margin-top:10px;

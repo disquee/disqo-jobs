@@ -51,7 +51,10 @@ from ..ingest import (
 from ..searchconfig import current as config_current, save as config_save
 from ..settings import (
     ENV_KEYS,
-    check_api_key,
+    check_llm,
+    claude_cli_path,
+    local_models,
+    LLM_MODES,
     env_status,
     set_env,
     has_api_key,
@@ -74,6 +77,7 @@ from ..pipeline.prep import (
 )
 from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, render_pdf, resume_path
+from ..llm import LOCAL_BASE_URL_DEFAULT
 from ..store import (
     activity_for_job,
     upsert_job,
@@ -813,6 +817,9 @@ def setup(request: Request, step: str = "", msg: str = "", err: str = ""):
     # Setup is the first run. Afterwards, changes belong in Settings.
     if not step and settings.onboarded and profile_ready():
         return RedirectResponse("/settings", status_code=303)
+    # One probe per page load: when no server is listening this costs a timeout,
+    # and asking twice would double the wait for the answer "nothing there".
+    offered = local_models(settings.local_base_url)
     return templates.TemplateResponse(
         request,
         "setup.html",
@@ -820,6 +827,12 @@ def setup(request: Request, step: str = "", msg: str = "", err: str = ""):
             "settings": settings,
             "step": step or ("welcome" if not settings.onboarded else "done"),
             "has_key": has_api_key(),
+            # Offer the two local-ish modes honestly: say up front whether the
+            # thing they depend on is actually on this machine.
+            "claude_found": claude_cli_path(),
+            "local_base_url": settings.local_base_url or LOCAL_BASE_URL_DEFAULT,
+            "local_models": offered,
+            "local_found": bool(offered),
             "profile_ready": profile_ready(),
             "resume_text": (PROFILE_DIR / "resume_master.md").read_text(encoding="utf-8")
             if (PROFILE_DIR / "resume_master.md").exists() else "",
@@ -834,17 +847,30 @@ def setup(request: Request, step: str = "", msg: str = "", err: str = ""):
 @app.post("/setup/mode")
 def setup_mode(llm_mode: str = Form("api")):
     settings = load_settings()
-    settings.llm_mode = "manual" if llm_mode == "manual" else "api"
+    settings.llm_mode = llm_mode if llm_mode in LLM_MODES else "api"
     save_settings(settings)
-    nxt = "key" if settings.llm_mode == "api" else "resume"
+    # Copy-and-paste needs no configuring; the other three each have a step.
+    nxt = "resume" if settings.llm_mode == "manual" else "key"
     return RedirectResponse(f"/setup?step={nxt}", status_code=303)
+
+
+@app.post("/setup/local")
+def setup_local(base_url: str = Form(""), local_model: str = Form("")):
+    settings = load_settings()
+    settings.local_base_url = base_url.strip()
+    settings.local_model = local_model.strip()
+    save_settings(settings)
+    ok, message = check_llm()
+    step = "resume" if ok else "key"
+    param = "msg" if ok else "err"
+    return RedirectResponse(f"/setup?step={step}&{param}={message}", status_code=303)
 
 
 @app.post("/setup/key")
 def setup_key(api_key: str = Form("")):
     if api_key.strip():
         set_api_key(api_key)
-    ok, message = check_api_key()
+    ok, message = check_llm()
     if ok:
         return RedirectResponse(f"/setup?step=resume&msg={message}", status_code=303)
     return RedirectResponse(f"/setup?step=key&err={message}", status_code=303)
@@ -920,10 +946,15 @@ def settings_page(request: Request, msg: str = "", err: str = ""):
             profile = yaml.safe_load(pf.read_text(encoding="utf-8")) or {}
         except Exception:
             profile = {}
+    current = load_settings()
+    offered = local_models(current.local_base_url)   # one probe, see /setup
     return templates.TemplateResponse(
         request, "settings.html",
         {
-            "cfg": cfg, "settings": load_settings(), "env": env_status(),
+            "cfg": cfg, "settings": current, "env": env_status(),
+            "claude_found": claude_cli_path(),
+            "local_base_url": current.local_base_url or LOCAL_BASE_URL_DEFAULT,
+            "local_models": offered, "local_found": bool(offered),
             "env_labels": ENV_KEYS, "profile": profile,
             "screening": profile.get("screening_defaults") or {},
             "data_dir": str(DATA_DIR),
@@ -980,6 +1011,7 @@ def settings_keys(
     ANTHROPIC_API_KEY: str = Form(""), ADZUNA_APP_ID: str = Form(""),
     ADZUNA_APP_KEY: str = Form(""), JOOBLE_API_KEY: str = Form(""),
     JOBPILOT_MODEL: str = Form(""), llm_mode: str = Form(""),
+    local_base_url: str = Form(""), local_model: str = Form(""),
 ):
     """Blank means leave alone, so a page can show status without echoing secrets."""
     for key, value in [("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY),
@@ -989,10 +1021,13 @@ def settings_keys(
         if value.strip():
             set_env(key, value)
     set_env("JOBPILOT_MODEL", JOBPILOT_MODEL)
-    if llm_mode in ("api", "manual"):
-        s = load_settings()
-        s.llm_mode = llm_mode
-        save_settings(s)
+    current = load_settings()
+    if llm_mode in LLM_MODES:
+        current.llm_mode = llm_mode
+    # These two are typed, not secret, so blank genuinely means "clear it".
+    current.local_base_url = local_base_url.strip()
+    current.local_model = local_model.strip()
+    save_settings(current)
     return RedirectResponse("/settings?msg=Keys and AI settings saved.", status_code=303)
 
 

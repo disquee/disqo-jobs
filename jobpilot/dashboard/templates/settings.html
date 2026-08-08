@@ -67,11 +67,35 @@
     <code>.env</code> file readable only by you, and are never shown back to this page.
   </p>
   <form method="post" action="/settings/keys" style="margin-top:14px;">
-    <label class="field" style="max-width:340px;"><span>How AI runs</span>
+    <label class="field" style="max-width:400px;"><span>How AI runs</span>
       <select name="llm_mode">
-        <option value="api" {{ 'selected' if not settings.is_manual }}>Use an API key</option>
-        <option value="manual" {{ 'selected' if settings.is_manual }}>No API key — copy and paste</option>
+        <option value="api" {{ 'selected' if settings.llm_mode == 'api' }}>An API key</option>
+        <option value="cli" {{ 'selected' if settings.llm_mode == 'cli' }}>Claude Code{{ '' if claude_found else ' — not installed' }}</option>
+        <option value="local" {{ 'selected' if settings.llm_mode == 'local' }}>A model on this computer{{ '' if local_found else ' — no server found' }}</option>
+        <option value="manual" {{ 'selected' if settings.llm_mode == 'manual' }}>Copy and paste</option>
       </select></label>
+    <div class="formgrid" style="max-width:560px; margin-top:12px;">
+      <label class="field"><span>Local server address</span>
+        <input type="text" name="local_base_url" value="{{ settings.local_base_url }}"
+               placeholder="{{ local_base_url }}"></label>
+      <label class="field"><span>Local model</span>
+        {% if local_models %}
+          <select name="local_model">
+            <option value="">— pick one —</option>
+            {% for m in local_models %}
+              <option value="{{ m }}" {{ 'selected' if m == settings.local_model }}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <input type="text" name="local_model" value="{{ settings.local_model }}"
+                 placeholder="start the server to list models">
+        {% endif %}
+      </label>
+    </div>
+    <p class="muted" style="font-size:0.82rem; margin-top:6px;">
+      Those two only matter in local mode. Claude Code mode needs nothing configured —
+      just the <code>claude</code> command, signed in.
+    </p>
     <div class="formgrid" style="margin-top:14px;">
       {% for key, label in env_labels.items() %}
         {% if key != 'JOBPILOT_DATA_DIR' %}
