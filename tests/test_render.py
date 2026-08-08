@@ -25,3 +25,9 @@ def test_render_writes_nonempty_file(tmp_path):
 def test_path_helpers_are_stable(sample_job):
     assert render.resume_path(sample_job).name.endswith(f"{sample_job.id}.pdf")
     assert "acme" in render.resume_path(sample_job).name
+
+
+def test_cv_path_is_separate_from_resume_path(sample_job):
+    assert render.cv_path(sample_job).name.endswith(f"{sample_job.id}.pdf")
+    assert render.cv_path(sample_job) != render.resume_path(sample_job)
+    assert render.cv_path(sample_job).parent.name == "cvs"

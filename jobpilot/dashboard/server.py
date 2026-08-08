@@ -53,6 +53,7 @@ from ..settings import (
     ENV_KEYS,
     check_llm,
     claude_cli_path,
+    cv_enabled_for,
     local_models,
     LLM_MODES,
     env_status,
@@ -76,7 +77,7 @@ from ..pipeline.prep import (
     render_prep_file, save_plan,
 )
 from ..pipeline.process import tailor_job_full
-from ..pipeline.render import cover_path, render_pdf, resume_path
+from ..pipeline.render import cover_path, cv_path, render_pdf, resume_path
 from ..llm import LOCAL_BASE_URL_DEFAULT
 from ..store import (
     activity_for_job,
@@ -275,8 +276,8 @@ def _remove_jobs(jobs: list) -> int:
     record going away is what the user asked for.
     """
     for job in jobs:
-        for path in (resume_path(job), cover_path(job), prep_html_path(job),
-                     prep_json_path(job), prep_plan_path(job)):
+        for path in (resume_path(job), cv_path(job), cover_path(job),
+                     prep_html_path(job), prep_json_path(job), prep_plan_path(job)):
             try:
                 Path(path).unlink(missing_ok=True)
             except OSError:
@@ -354,6 +355,7 @@ def job_detail(request: Request, job_id: str, err: str = ""):
             "err": err,
             "display_status": display_status,
             "settings": load_settings(),
+            "cv_on": cv_enabled_for(job),
         },
     )
 
@@ -660,10 +662,37 @@ def do_tailor(job_id: str):
     return RedirectResponse(f"/job/{job_id}", status_code=303)
 
 
+@app.post("/job/{job_id}/cv")
+def set_cv(job_id: str, value: str = Form("")):
+    """Flip CV generation for one job. Stored as an explicit per-job choice, so
+    changing the Settings default later doesn't silently reverse it."""
+    job = get_job(job_id)
+    if job:
+        job.cv_enabled = value == "on"
+        save_job(job)
+    return RedirectResponse(f"/job/{job_id}", status_code=303)
+
+
+@app.post("/job/{job_id}/cv/generate")
+def do_cv(job_id: str):
+    """Write the CV for an already-tailored job — the toggle came on after."""
+    job = get_job(job_id)
+    application = get_application(job_id)
+    if not job or not application:
+        return RedirectResponse(f"/job/{job_id}", status_code=303)
+    if load_settings().is_manual:
+        return RedirectResponse(f"/job/{job_id}/manual/cv", status_code=303)
+    application.tailored_cv_md = tailor_mod.generate_cv(job)
+    application.cv_pdf_path = str(render_pdf(application.tailored_cv_md, cv_path(job)))
+    save_application(application)
+    return RedirectResponse(f"/job/{job_id}", status_code=303)
+
+
 @app.post("/job/{job_id}/save")
 def do_save(
     job_id: str,
     resume_md: str = Form(""),
+    cv_md: str = Form(""),
     cover_md: str = Form(""),
     screening_json: str = Form("[]"),
 ):
@@ -674,6 +703,11 @@ def do_save(
 
     application.tailored_resume_md = resume_md
     application.cover_letter_md = cover_md
+    # The CV textarea only exists on the page once a CV has been generated, so
+    # an empty field means "no CV here", not "delete my CV".
+    if cv_md.strip():
+        application.tailored_cv_md = cv_md
+        application.cv_pdf_path = str(render_pdf(cv_md, cv_path(job)))
     try:
         pairs = json.loads(screening_json)
         application.screening = [
@@ -900,9 +934,17 @@ async def setup_resume(
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
     (PROFILE_DIR / "resume_master.md").write_text(content, encoding="utf-8")
     return RedirectResponse(
-        "/setup?step=profile&msg=Resume saved. Edit it any time in Settings.",
+        "/setup?step=cv&msg=Resume saved. Edit it any time in Settings.",
         status_code=303,
     )
+
+
+@app.post("/setup/cv")
+def setup_cv(generate_cv: str = Form("no")):
+    settings = load_settings()
+    settings.generate_cv = generate_cv == "yes"
+    save_settings(settings)
+    return RedirectResponse("/setup?step=profile", status_code=303)
 
 
 @app.post("/setup/profile")
@@ -1004,6 +1046,14 @@ def settings_behaviour(
     cfg["exclude_company"] = [s.strip() for s in exclude_company.splitlines() if s.strip()]
     config_save(cfg)
     return RedirectResponse("/settings?msg=Search behaviour saved.", status_code=303)
+
+
+@app.post("/settings/documents")
+def settings_documents(generate_cv: str = Form("")):
+    current = load_settings()
+    current.generate_cv = bool(generate_cv)
+    save_settings(current)
+    return RedirectResponse("/settings?msg=Document settings saved.", status_code=303)
 
 
 @app.post("/settings/keys")
@@ -1271,11 +1321,14 @@ def add_job(
 @app.get("/job/{job_id}/manual/{kind}", response_class=HTMLResponse)
 def manual_prompt(request: Request, job_id: str, kind: str, err: str = ""):
     job = get_job(job_id)
-    if not job or kind not in ("fit", "tailor"):
+    if not job or kind not in ("fit", "tailor", "cv"):
         return RedirectResponse("/", status_code=303)
-    prompt = (
-        fit_mod.build_prompt(job) if kind == "fit" else tailor_mod.build_manual_prompt(job)
-    )
+    if kind == "fit":
+        prompt = fit_mod.build_prompt(job)
+    elif kind == "cv":
+        prompt = tailor_mod.build_manual_cv_prompt(job)
+    else:
+        prompt = tailor_mod.build_manual_prompt(job, include_cv=cv_enabled_for(job))
     return templates.TemplateResponse(
         request, "manual.html",
         {"job": job, "kind": kind, "prompt": prompt, "err": err},
@@ -1299,6 +1352,14 @@ def manual_submit(job_id: str, kind: str, response: str = Form("")):
             fit_mod.apply_result(job, _extract_json(response))
             job.status = Status.scored
             save_job(job)
+        elif kind == "cv":
+            # The reply is the CV itself, plain Markdown — no JSON to parse.
+            application = get_application(job_id) or Application(job_id=job.id)
+            application.tailored_cv_md = response.strip()
+            application.cv_pdf_path = str(
+                render_pdf(application.tailored_cv_md, cv_path(job))
+            )
+            save_application(application)
         else:
             application = tailor_mod.parse_manual_response(job, response)
             application.resume_pdf_path = str(
@@ -1307,6 +1368,10 @@ def manual_submit(job_id: str, kind: str, response: str = Form("")):
             application.cover_pdf_path = str(
                 render_pdf(application.cover_letter_md, cover_path(job))
             )
+            if application.tailored_cv_md:
+                application.cv_pdf_path = str(
+                    render_pdf(application.tailored_cv_md, cv_path(job))
+                )
             save_application(application)
             job.status = Status.tailored
             save_job(job)

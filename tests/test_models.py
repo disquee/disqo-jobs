@@ -32,3 +32,9 @@ def test_ensure_id_idempotent():
 
 def test_default_status_is_discovered():
     assert _job().status is Status.discovered
+
+
+def test_cv_toggle_defaults_to_unset():
+    # None means "follow the Settings default"; True/False is a per-job choice.
+    assert _job().cv_enabled is None
+    assert _job(cv_enabled=True).cv_enabled is True

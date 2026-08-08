@@ -97,6 +97,42 @@
 </div>
 
 <div class="card">
+  <div class="row" style="justify-content:space-between;">
+    <h3 style="margin:0;">CV</h3>
+    <span class="pill {{ 'tone-accent' if cv_on }}">{{ 'on for this job' if cv_on else 'off for this job' }}</span>
+  </div>
+  <p class="muted" style="margin-top:8px;">
+    A full-length CV — your complete history tailored to the posting, alongside the
+    one-page resume.
+    {% if job.cv_enabled is none %}
+      Currently following your default from <a href="/settings">Settings</a>.
+    {% else %}
+      Set here just for this job; the default for new jobs lives in
+      <a href="/settings">Settings</a>.
+    {% endif %}
+  </p>
+  <div class="row" style="margin-top:12px;">
+    <form class="inline" method="post" action="/job/{{ job.id }}/cv">
+      <input type="hidden" name="value" value="{{ 'off' if cv_on else 'on' }}">
+      <button class="secondary" type="submit">
+        Turn CV {{ 'off' if cv_on else 'on' }} for this job
+      </button>
+    </form>
+    {% if app and not app.tailored_cv_md %}
+      <form class="inline" method="post" action="/job/{{ job.id }}/cv/generate">
+        <button type="submit">Write my CV now</button>
+      </form>
+    {% endif %}
+  </div>
+  {% if not app %}
+    <p class="muted" style="margin-top:10px; font-size:0.82rem;">
+      {{ 'The CV will be written along with the resume and cover letter below.' if cv_on
+         else 'Turn it on before tailoring, or write it afterwards — either works.' }}
+    </p>
+  {% endif %}
+</div>
+
+<div class="card">
   <h3>Posting</h3>
   <pre class="posting">{{ job.description }}</pre>
 </div>
@@ -117,6 +153,15 @@
         <p class="muted" style="margin-top:8px; font-size:0.82rem;">PDF: <code>{{ app.resume_pdf_path }}</code></p>
       {% endif %}
     </div>
+    {% if app.tailored_cv_md %}
+      <div class="card">
+        <h3>Tailored CV (Markdown)</h3>
+        <textarea name="cv_md">{{ app.tailored_cv_md }}</textarea>
+        {% if app.cv_pdf_path %}
+          <p class="muted" style="margin-top:8px; font-size:0.82rem;">PDF: <code>{{ app.cv_pdf_path }}</code></p>
+        {% endif %}
+      </div>
+    {% endif %}
     <div class="card">
       <h3>Cover letter</h3>
       <textarea name="cover_md">{{ app.cover_letter_md }}</textarea>

@@ -32,6 +32,9 @@ class Settings(BaseModel):
     model: Optional[str] = None
     local_base_url: str = ""
     local_model: str = ""
+    # Also write a full-length CV (complete history, not the one-page resume)
+    # for each tailored job. Jobs can override this individually (Job.cv_enabled).
+    generate_cv: bool = False
     onboarded: bool = False
 
     @property
@@ -56,6 +59,14 @@ def load_settings() -> Settings:
 def save_settings(settings: Settings) -> Settings:
     SETTINGS_PATH.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
     return settings
+
+
+def cv_enabled_for(job) -> bool:
+    """Whether tailoring should write a CV for this job: the job's own toggle
+    when one was set, otherwise the generate_cv setting."""
+    if getattr(job, "cv_enabled", None) is not None:
+        return bool(job.cv_enabled)
+    return load_settings().generate_cv
 
 
 def has_api_key() -> bool:
