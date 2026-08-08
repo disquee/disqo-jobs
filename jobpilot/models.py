@@ -67,6 +67,10 @@ class Job(BaseModel):
     fit_score: Optional[int] = None
     fit_rationale: Optional[str] = None
 
+    # Per-job CV override. None means follow the generate_cv setting; True/False
+    # is an explicit choice made on this job's page.
+    cv_enabled: Optional[bool] = None
+
     # Interview prep (see pipeline/prep.py). Paths are relative to the repo root
     # when possible so a moved checkout still resolves them.
     prep_status: PrepStatus = PrepStatus.none
@@ -165,8 +169,10 @@ class Application(BaseModel):
 
     job_id: str
     tailored_resume_md: str = ""
+    tailored_cv_md: str = ""     # full-length CV; empty unless CV is on for the job
     cover_letter_md: str = ""
     screening: list[ScreeningQA] = Field(default_factory=list)
     resume_pdf_path: Optional[str] = None
+    cv_pdf_path: Optional[str] = None
     cover_pdf_path: Optional[str] = None
     date_applied: Optional[str] = None

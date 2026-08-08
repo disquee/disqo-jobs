@@ -2,8 +2,8 @@
 
 AI job-application assistant. It discovers jobs from ToS-compliant sources, scores
 how well each fits your profile, drafts a tailored resume + cover letter + screening
-answers, lets you review/edit, helps you apply (you submit), and logs every
-application to a CSV.
+answers (and, if you turn it on, a full-length CV), lets you review/edit, helps you
+apply (you submit), and logs every application to a CSV.
 
 > **Scope & safety.** disqo jobs does **not** scrape LinkedIn or auto-submit
 > applications. Discovery uses official APIs (Adzuna, Jooble) and public ATS boards
@@ -110,7 +110,10 @@ not in the app folder.
 `output/applications.csv` columns: `date_applied, job_title, company, location,
 posting_text, apply_url, fit_score, resume_path, cover_letter_path, status`.
 
-Tailored PDFs land in `output/resumes/` and `output/cover_letters/`.
+Tailored PDFs land in `output/resumes/` and `output/cover_letters/` — and
+`output/cvs/` when the CV is turned on. The CV is off by default; the setup
+walkthrough asks once, Settings holds the default, and every job's page has its
+own switch that overrides it.
 
 ## Get API keys (free tiers)
 

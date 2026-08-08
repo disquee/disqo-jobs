@@ -139,5 +139,9 @@ def resume_path(job) -> Path:
     return OUTPUT_DIR / "resumes" / f"{_slug(job.company)}-{job.id}.pdf"
 
 
+def cv_path(job) -> Path:
+    return OUTPUT_DIR / "cvs" / f"{_slug(job.company)}-{job.id}.pdf"
+
+
 def cover_path(job) -> Path:
     return OUTPUT_DIR / "cover_letters" / f"{_slug(job.company)}-{job.id}.pdf"
