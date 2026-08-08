@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% set nav = 'applied' %}
-{% block title %}Work search log · disqo jobs{% endblock %}
+{% block title %}Search log · disqo jobs{% endblock %}
 
 {% block content %}
 <div class="page-head">
-  <h1 class="page-title">Work search log</h1>
+  <h1 class="page-title">Search log</h1>
   <span class="page-sub">{{ activities|length }} activit{{ 'y' if activities|length == 1 else 'ies' }}
     {%- if date_from or date_to %} in range{% endif %}</span>
 </div>
@@ -73,7 +73,7 @@
           <th data-sort="text">Contact</th>
           <th data-sort="text">Type</th>
           <th data-sort="text">Result</th>
-          <th>Notes</th><th class="no-print"><span class="sr-only">Actions</span></th>
+          <th>Notes</th><th class="no-print">Remove</th>
         </tr>
       </thead>
       <tbody>

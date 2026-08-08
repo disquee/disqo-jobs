@@ -78,7 +78,9 @@ from ..store import (
     activity_for_job,
     upsert_job,
     delete_activity,
+    delete_jobs,
     get_activity,
+    job_ids_with_activity,
     get_application,
     get_job,
     init_db,
@@ -120,7 +122,7 @@ def job_date(job) -> dict:
         raw, posted = job.discovered_at, False
     dt = _parse_date(raw)
     if dt is None:
-        return {"label": "—", "sort": "", "title": "", "stale": False}
+        return {"label": "—", "sort": "", "title": "", "stale": False, "days": None}
 
     today = date.today()
     days = (today - dt.date()).days
@@ -147,6 +149,7 @@ def job_date(job) -> dict:
                  + (f" · {days} days ago" if days > 0 else ""),
         "stale": days > 45,
         "posted": posted,
+        "days": days,
     }
 
 
@@ -229,23 +232,97 @@ def home(request: Request):
     )
 
 
-@app.get("/jobs", response_class=HTMLResponse)
-def index(request: Request):
-    threshold = int(load_config().get("fit_threshold", 70))
-    # Applied jobs stay listed so the ✓ is visible at a glance, but sort under
-    # everything still needing action.
+#: Ages offered by "Clear out old jobs" on My jobs, and the one picked by default.
+CLEANUP_AGES = (30, 45, 60, 90, 180)
+CLEANUP_DEFAULT_AGE = 90
+
+
+def _queue_jobs() -> list:
+    """What My jobs lists: still-open work first, then what's already sent."""
     active = list_jobs(Status.tailored) + list_jobs(Status.scored) + list_jobs(Status.approved)
     done = list_jobs(Status.applied)
-    jobs = sorted(active, key=lambda j: j.fit_score or 0, reverse=True) + sorted(
+    return sorted(active, key=lambda j: j.fit_score or 0, reverse=True) + sorted(
         done, key=lambda j: j.fit_score or 0, reverse=True
     )
+
+
+def _clearable(jobs: list, days: int) -> list:
+    """Queue entries at least `days` old that carry nothing worth keeping.
+
+    A posting is disposable; a record of what you did about it is not. Anything
+    applied to, prepped for, or written into the work-search log stays put, and
+    so does anything whose date we never learned.
+    """
+    logged = job_ids_with_activity()
+    return [
+        job for job in jobs
+        if (job_date(job)["days"] or 0) >= days
+        and job.status != Status.applied
+        and job.prep_status == PrepStatus.none
+        and job.id not in logged
+    ]
+
+
+def _remove_jobs(jobs: list) -> int:
+    """Delete jobs, their generated applications, and the files behind them.
+
+    Without the files, clearing a few hundred listings would leave a few hundred
+    orphaned PDFs behind. A file we can't delete isn't worth failing over — the
+    record going away is what the user asked for.
+    """
+    for job in jobs:
+        for path in (resume_path(job), cover_path(job), prep_html_path(job),
+                     prep_json_path(job), prep_plan_path(job)):
+            try:
+                Path(path).unlink(missing_ok=True)
+            except OSError:
+                pass
+    return delete_jobs(job.id for job in jobs)
+
+
+@app.get("/jobs", response_class=HTMLResponse)
+def index(request: Request, q: str = "", removed: int = 0):
+    cfg = load_config()
+    threshold = int(cfg.get("fit_threshold", 70))
+    # Applied jobs stay listed so the ✓ is visible at a glance, but sort under
+    # everything still needing action.
+    jobs = _queue_jobs()
+    cleanup = [(days, len(_clearable(jobs, days))) for days in CLEANUP_AGES]
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"jobs": jobs, "threshold": threshold, "PrepStatus": PrepStatus,
+        {"jobs": jobs, "threshold": threshold, "PrepStatus": PrepStatus, "Status": Status,
          "settings": load_settings(), "display_status": display_status,
-         "interviewing": _interviewing_ids()},
+         "interviewing": _interviewing_ids(), "q": q,
+         # Searching for jobs lives at the top of this page.
+         "task": tasks.status("discover"),
+         "searches": cfg.get("searches", []),
+         "companies": (cfg.get("ats", {}) or {}).get("greenhouse", []),
+         "per_job": estimate_per_job(),
+         # …and clearing out what it turned up months ago folds away above the table.
+         "cleanup": cleanup,
+         "cleanup_age": CLEANUP_DEFAULT_AGE,
+         "cleanup_default": dict(cleanup).get(CLEANUP_DEFAULT_AGE, 0),
+         "removed": removed},
     )
+
+
+@app.post("/jobs/cleanup")
+def jobs_cleanup(days: int = Form(90)):
+    if days not in CLEANUP_AGES:
+        return RedirectResponse("/jobs", status_code=303)
+    removed = _remove_jobs(_clearable(_queue_jobs(), days))
+    return RedirectResponse(f"/jobs?removed={removed}", status_code=303)
+
+
+@app.post("/job/{job_id}/remove")
+def job_remove(job_id: str):
+    """Drop one listing. Unlike the bulk clear this takes whatever you point it
+    at — you're naming this job specifically — but the work-search log entry
+    behind it still survives, so the reportable record is never the casualty."""
+    job = get_job(job_id)
+    removed = _remove_jobs([job]) if job else 0
+    return RedirectResponse(f"/jobs?removed={removed}", status_code=303)
 
 
 @app.get("/job/{job_id}", response_class=HTMLResponse)
@@ -941,19 +1018,10 @@ def settings_profile(
 
 # ---- search for jobs, with progress --------------------------------------
 
-@app.get("/discover", response_class=HTMLResponse)
-def discover_page(request: Request):
-    cfg = load_config()
-    return templates.TemplateResponse(
-        request, "discover.html",
-        {
-            "task": tasks.status("discover"),
-            "searches": cfg.get("searches", []),
-            "companies": (cfg.get("ats", {}) or {}).get("greenhouse", []),
-            "settings": load_settings(),
-            "per_job": estimate_per_job(),
-        },
-    )
+@app.get("/discover")
+def discover_page():
+    """Searching moved onto My jobs; keep old links and bookmarks working."""
+    return RedirectResponse("/jobs", status_code=303)
 
 
 @app.post("/discover")
@@ -975,7 +1043,7 @@ def discover_start(score: str = Form("1"), tailor: str = Form("")):
         return summary
 
     tasks.start("discover", job, label="Starting")
-    return RedirectResponse("/discover", status_code=303)
+    return RedirectResponse("/jobs", status_code=303)
 
 
 @app.get("/discover/status")

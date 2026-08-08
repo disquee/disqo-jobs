@@ -27,7 +27,13 @@
       <a class="btn secondary" href="{{ job.apply_url }}" target="_blank" rel="noopener">Open posting ↗</a>
     {% endif %}
     <form class="inline" method="post" action="/job/{{ job.id }}/skip">
-      <button class="danger" type="submit">Skip</button>
+      <button class="secondary" type="submit">Skip</button>
+    </form>
+    <!-- Skip keeps the job and hides it; Remove deletes it. Different enough
+         to sit side by side, so only the destructive one is styled that way. -->
+    <form class="inline" method="post" action="/job/{{ job.id }}/remove"
+          data-confirm="Remove “{{ job.title }} at {{ job.company }}” for good? Your work search log entry stays.">
+      <button class="danger" type="submit">Remove</button>
     </form>
   </div>
 </div>

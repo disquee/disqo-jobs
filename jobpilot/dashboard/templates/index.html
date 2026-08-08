@@ -1,38 +1,134 @@
 {% extends "base.html" %}
 {% set nav = 'queue' %}
-{% block title %}Review queue · disqo jobs{% endblock %}
-
-{% block toolbar %}
-<div class="search-wrap">
-  <svg class="search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-       stroke-width="1.6" aria-hidden="true">
-    <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/>
-  </svg>
-  <input class="search" id="search" type="search" autocomplete="off"
-         placeholder="Search title, company, location…" aria-label="Search jobs">
-</div>
-{% endblock %}
+{% block title %}Jobs · disqo jobs{% endblock %}
 
 {% block content %}
 <div class="page-head">
-  <h1 class="page-title">My jobs</h1>
+  <h1 class="page-title">Jobs</h1>
   <span class="page-sub">Fit threshold {{ threshold }} · {{ jobs|length }} in queue</span>
 </div>
 
+<!-- Finding jobs and working through them are one task, so they're one page:
+     search at the top, everything it turns up in the queue below. -->
+<div class="card" id="runner" data-state="{{ task.state if task else 'idle' }}">
+  <div id="idle" {% if task and task.state == 'running' %}hidden{% endif %}>
+    <h3>Search for jobs</h3>
+    <p class="muted" style="font-size:0.88rem;">
+      Checks the job boards and company career pages you picked during setup.
+      This usually takes a few minutes — you can leave the page and come back.
+    </p>
+
+    {% if searches %}
+      <p class="muted" style="margin-top:12px; font-size:0.85rem;">Looking for:</p>
+      <div class="row" style="gap:6px; margin-top:6px;">
+        {% for s in searches[:12] %}<span class="pill">{{ s.query }}</span>{% endfor %}
+        {% if companies %}<span class="pill tone-accent">+ {{ companies|length }} companies</span>{% endif %}
+      </div>
+    {% else %}
+      <div class="note tone-warn" style="margin-top:12px;">
+        No search terms yet. <a href="/setup?step=targets">Pick what to look for</a> first.
+      </div>
+    {% endif %}
+
+    <form method="post" action="/discover" style="margin-top:18px;" id="startForm">
+      {% if not settings.is_manual %}
+        <label class="check" style="max-width:420px;">
+          <input type="checkbox" name="score" value="1" checked> Score how well each job fits me
+        </label>
+        <label class="check" style="max-width:420px; margin-top:8px;">
+          <input type="checkbox" name="tailor" value="1"> Also write applications for the best matches
+        </label>
+        <p class="muted" style="margin-top:10px; font-size:0.8rem;">
+          Scoring and writing use AI and cost money
+          {%- if per_job %}, roughly {{ '%.0f'|format(per_job * 100) }}¢ per job{% endif %}.
+          Leave them off to just collect listings.
+        </p>
+      {% else %}
+        <p class="muted" style="font-size:0.85rem;">
+          You're set up without an API key, so this only collects listings —
+          score and write each one from its own page.
+        </p>
+      {% endif %}
+      <div class="row" style="margin-top:16px;">
+        <button type="submit" {% if not searches %}disabled{% endif %}>Start searching</button>
+        <a class="btn secondary" href="/jobs/add">Paste a single link instead</a>
+      </div>
+    </form>
+  </div>
+
+  <div id="running" {% if not (task and task.state == 'running') %}hidden{% endif %}>
+    <h3 id="runLabel">Starting…</h3>
+    <div class="progress"><span id="runBar" style="width:0%"></span></div>
+    <p class="muted" style="margin-top:10px; font-size:0.85rem;">
+      <span id="runCount"></span> <span id="runElapsed"></span>
+    </p>
+    <p class="muted" style="font-size:0.82rem;">
+      Safe to leave this page — it keeps running.
+    </p>
+  </div>
+
+  <div id="finished" hidden>
+    <h3 id="doneTitle">Done</h3>
+    <p class="muted" id="doneDetail" style="font-size:0.88rem;"></p>
+    <div class="row" style="margin-top:14px;">
+      <button type="button" onclick="location.reload()">Show the new jobs</button>
+      <button class="secondary" type="button" id="againBtn">Search again</button>
+    </div>
+  </div>
+</div>
+
+{% if removed %}
+  <div class="note tone-ok">Removed {{ removed }} job{{ '' if removed == 1 else 's' }}.</div>
+{% endif %}
+
 <p class="hitcount" id="hitcount"></p>
-<p class="muted" style="font-size:0.8rem; margin:-6px 0 12px;">
+<p class="muted" style="font-size:0.8rem; margin:0 0 12px;">
   Dates are when the job was posted. An asterisk means the posting didn't say,
   so it's when disqo jobs found it. Faded dates are over 45 days old.
 </p>
 
+{% if jobs and cleanup_default %}
+  <!-- Above the table, not below it: a full queue runs to a thousand rows. -->
+  <details class="tidy">
+    <summary>Clear out old jobs
+      <span class="muted" style="font-weight:400;">{{ cleanup_default }} older than
+        {{ cleanup_age }} days</span></summary>
+    <form class="tidybody" method="post" action="/jobs/cleanup" id="cleanup">
+      <p class="muted" style="font-size:0.86rem;">
+        Postings go stale — most are filled long before they come off a job board.
+        This removes the ones you never acted on.
+      </p>
+      <fieldset class="agepick" style="margin-top:14px;">
+        <legend>Remove jobs older than</legend>
+        <div class="agechips">
+          {% for days, count in cleanup %}
+            <label class="agechip {{ 'is-empty' if not count }}">
+              <input type="radio" name="days" value="{{ days }}"
+                     data-count="{{ count }}" {{ 'checked' if days == cleanup_age }}>
+              <span class="ageval">{{ '6 months' if days == 180 else days ~ ' days' }}</span>
+              <span class="agecount">{{ count }} job{{ '' if count == 1 else 's' }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="row" style="margin-top:14px;">
+        <button class="danger" type="submit" id="cleanupBtn">Remove</button>
+      </div>
+      <p class="muted" style="margin-top:12px; font-size:0.82rem;">
+        Never touches a job you applied to, set up prep for, or entered in your
+        work search log. Deleted for real, not hidden — your
+        <a href="/data">daily backup</a> still has them.
+      </p>
+    </form>
+  </details>
+{% endif %}
+
 {% if not jobs %}
   <div class="tablecard"><div class="empty">
     <p style="font-weight:600; color:var(--ink);">Nothing in the queue</p>
-    <p style="margin-top:5px;">Paste a link to a job you found and disqo jobs will take it
-      from there.</p>
+    <p style="margin-top:5px;">Run a search above, or paste a link to a job you found
+      and disqo jobs will take it from there.</p>
     <p style="margin-top:14px;"><a class="btn" href="/jobs/add">Paste a job link</a></p>
-    <p class="muted" style="margin-top:14px; font-size:0.82rem;">Or search job boards
-      automatically with <code>disqo-jobs discover --tailor</code> in a terminal.</p>
   </div></div>
 {% else %}
 <div class="tablecard">
@@ -47,7 +143,7 @@
         <th data-sort="text">Location</th>
         <th data-sort="num">Status</th>
         <th data-sort="num">Prep</th>
-        <th><span class="sr-only">Actions</span></th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -82,7 +178,22 @@
             <a href="/job/{{ job.id }}/prep/new" class="tag-plain">Set up prep</a>
           {% endif %}
         </td>
-        <td><a class="tag-plain" href="/job/{{ job.id }}">Review →</a></td>
+        <td>
+          {# The flex box has to be inside the cell, not be the cell: a display:flex
+             <td> drops out of the table's width calculation and its contents
+             spill past the row. #}
+          <div class="rowacts">
+            <a class="tag-plain" href="/job/{{ job.id }}">Review</a>
+            <form class="inline" method="post" action="/job/{{ job.id }}/remove"
+                  data-job="{{ job.title }} at {{ job.company }}"
+                  {% if job.status == Status.applied %}data-kept="You applied to this one"
+                  {% elif job.prep_status != PrepStatus.none %}data-kept="You've set up prep for this one"
+                  {% endif %}>
+              <button class="tag-plain is-danger is-remove" type="submit"
+                      title="Remove this job" aria-label="Remove this job">✕</button>
+            </form>
+          </div>
+        </td>
       </tr>
     {% endfor %}
     </tbody>
@@ -100,6 +211,10 @@
   var count = document.getElementById("hitcount");
   if (!input || !table) return;
   var rows = [].slice.call(table.tBodies[0].rows);
+
+  // The toolbar search is a form so it still works from other pages without
+  // JavaScript. Here the filtering is live, so there's nothing to submit.
+  if (input.form) input.form.addEventListener("submit", function (e) { e.preventDefault(); run(); });
 
   function run() {
     var q = input.value.trim().toLowerCase();
@@ -119,6 +234,118 @@
       e.preventDefault(); input.focus(); input.select();
     }
     if (e.key === "Escape" && document.activeElement === input) { input.value = ""; run(); input.blur(); }
+  });
+  if (input.value.trim()) run();   // arrived here from another page's search box
+})();
+</script>
+
+<script>
+// The search runner, above the queue. It polls a background task, so leaving
+// the page and coming back picks the run back up where it is.
+(function () {
+  var root = document.getElementById("runner");
+  if (!root) return;
+  var idle = document.getElementById("idle"), running = document.getElementById("running"),
+      finished = document.getElementById("finished");
+  var bar = document.getElementById("runBar"), label = document.getElementById("runLabel"),
+      count = document.getElementById("runCount"), elapsed = document.getElementById("runElapsed");
+  var timer = null;
+
+  function show(which) {
+    idle.hidden = which !== "idle";
+    running.hidden = which !== "running";
+    finished.hidden = which !== "finished";
+  }
+
+  function human(s) {
+    if (!s && s !== 0) return "";
+    var m = Math.floor(s / 60), r = s % 60;
+    return m ? m + "m " + r + "s elapsed" : r + "s elapsed";
+  }
+
+  function poll() {
+    fetch("/discover/status").then(function (r) { return r.json(); }).then(function (t) {
+      if (t.state === "running") {
+        show("running");
+        label.textContent = t.label || "Working…";
+        var pct = t.total ? Math.min(100, Math.round((t.done / t.total) * 100)) : 0;
+        bar.style.width = (t.total ? pct : 8) + "%";
+        count.textContent = t.total ? t.done + " of " + t.total + " sources · " : "";
+        elapsed.textContent = human(t.elapsed);
+        return;
+      }
+      clearInterval(timer);
+      if (t.state === "done") {
+        var r2 = t.result || {};
+        show("finished");
+        document.getElementById("doneTitle").textContent =
+          (r2.new || 0) + " new job" + (r2.new === 1 ? "" : "s") + " found";
+        var bits = [];
+        if (r2.found != null) bits.push(r2.found + " listings checked");
+        if (r2.scored) bits.push(r2.scored + " scored");
+        if (r2.tailored) bits.push(r2.tailored + " applications written");
+        if ((r2.unavailable_sources || []).length)
+          bits.push("skipped (no API key): " + r2.unavailable_sources.join(", "));
+        document.getElementById("doneDetail").textContent = bits.join(" · ");
+      } else if (t.state === "error") {
+        show("finished");
+        document.getElementById("doneTitle").textContent = "Search stopped";
+        document.getElementById("doneDetail").textContent = t.error || "Something went wrong.";
+      }
+    }).catch(function () { /* keep polling; a blip shouldn't kill the view */ });
+  }
+
+  document.getElementById("startForm").addEventListener("submit", function () {
+    show("running");
+    label.textContent = "Starting…";
+  });
+  // Back to the form without a reload — the queue below is already current.
+  document.getElementById("againBtn").addEventListener("click", function () { show("idle"); });
+
+  if (root.dataset.state === "running") show("running");
+  timer = setInterval(poll, 1200);
+  poll();
+})();
+</script>
+
+<script>
+// Deleting in bulk: say the number out loud before doing it, and don't offer
+// the button at all when the chosen age matches nothing.
+(function () {
+  var form = document.getElementById("cleanup");
+  if (!form) return;
+  var btn = document.getElementById("cleanupBtn");
+
+  function picked() { return form.querySelector('input[name="days"]:checked'); }
+  function count() { return parseInt(picked().dataset.count, 10) || 0; }
+  function sync() {
+    var n = count();
+    btn.disabled = !n;
+    btn.textContent = n ? "Remove " + n + " job" + (n === 1 ? "" : "s") : "Nothing to remove";
+  }
+  form.addEventListener("change", sync);
+  form.addEventListener("submit", function (e) {
+    var n = count();
+    if (!n || !confirm("Permanently remove " + n + " job" + (n === 1 ? "" : "s") +
+                       " older than " + picked().value + " days?")) e.preventDefault();
+  });
+  sync();
+})();
+</script>
+
+<script>
+// Removing one row. Name the job in the confirm, and say so out loud when it's
+// one the bulk clear would have refused to touch.
+(function () {
+  var table = document.getElementById("jobs");
+  if (!table) return;
+  table.addEventListener("submit", function (e) {
+    var form = e.target.closest("form[data-job]");
+    if (!form) return;
+    var kept = form.dataset.kept;
+    if (!confirm("Remove “" + form.dataset.job + "” from My jobs?" +
+                 (kept ? "\n\n" + kept + ". Your work search log entry stays." : "")))
+      e.preventDefault();
   });
 })();
 </script>
