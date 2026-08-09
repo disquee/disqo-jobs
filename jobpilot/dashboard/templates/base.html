@@ -479,6 +479,27 @@ thead th { position:sticky; top:var(--topbar-h); z-index:10; }
   thead th { position:static; }
 }
 
+/* Phones. The top bar's flex-wrap already stacks it, but in whatever order the
+   squeeze happens to force; pin the order — brand and search share the first
+   row, the nav gets its own — and let a nav that still doesn't fit scroll
+   sideways instead of wrapping into a block that eats half the screen. */
+@media (max-width: 640px) {
+  .topbar-inner { padding:8px 12px; gap:6px 10px; }
+  .brand { margin-right:0; }
+  .search-wrap { flex:1 1 120px; max-width:none; }
+  .navlinks { order:3; flex-basis:100%; overflow-x:auto;
+    -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .navlinks::-webkit-scrollbar { display:none; }
+  .navlinks a { white-space:nowrap; }
+  .wrap { padding:18px 12px 60px; }
+  .page-title { font-size:1.35rem; }
+  th, td { padding:9px 10px; }
+  /* Fingers, not pointers: keep every control comfortably tappable. */
+  button, .btn { padding:10px 14px; }
+  .btn.tiny { padding:7px 11px; }
+  .card { padding:14px; }
+}
+
 
 /* Footer. The GitHub button is the official embed, so this is the one place
    the app talks to a third party — see the note on the Your data page. */

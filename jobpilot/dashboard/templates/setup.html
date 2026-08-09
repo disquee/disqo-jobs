@@ -5,7 +5,8 @@
 <div class="wizard">
   <ol class="steps">
     {% for key, label in [('welcome','Start'), ('key','AI access'), ('resume','Resume'),
-                          ('profile','About you'), ('targets','What to look for'), ('done','Finish')] %}
+                          ('profile','About you'), ('targets','What to look for'),
+                          ('phone','Your phone'), ('done','Finish')] %}
       <li class="{{ 'is-current' if step == key else '' }}">{{ label }}</li>
     {% endfor %}
   </ol>
@@ -17,7 +18,7 @@
   {% if step == 'welcome' %}
     <div class="card">
       <h2 class="page-title">Let's get you set up</h2>
-      <p class="muted" style="margin-top:8px;">Five short steps. There's no account and no
+      <p class="muted" style="margin-top:8px;">Six short steps. There's no account and no
         server — <strong>disqo jobs never receives your data</strong>. Your resume and
         job history stay on this computer.</p>
 
@@ -266,6 +267,40 @@
         </div>
         <div class="row" style="margin-top:18px;"><button type="submit">Finish setup</button></div>
       </form>
+    </div>
+
+  {# ---------------------------------------------------------------- #}
+  {% elif step == 'phone' %}
+    <div class="card">
+      <h2 class="page-title">Use it on your phone?</h2>
+      <p class="muted" style="margin-top:8px;">The dashboard works on a phone screen.
+        Turn this on and any device on the same Wi-Fi — your phone, a tablet, another
+        computer — can open disqo jobs to review jobs and check your log. Everything
+        still stays in your home: nothing goes through the internet.</p>
+      <form method="post" action="/setup/phone" style="margin-top:14px;">
+        <label class="choice">
+          <input type="radio" name="mobile_access" value="" {{ '' if settings.mobile_access else 'checked' }}>
+          <span>
+            <strong>Just this computer</strong> — recommended
+            <span class="muted">The dashboard answers only on this machine. You can
+              turn phone access on later in Settings.</span>
+          </span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="mobile_access" value="on" {{ 'checked' if settings.mobile_access }}>
+          <span>
+            <strong>This computer and my phone</strong>
+            {% if mobile_ip %}<span class="pill">http://{{ mobile_ip }}:{{ port }}</span>{% endif %}
+            <span class="muted">Open the address above in your phone's browser while
+              this window is running. There's no password, so anyone on the same
+              network could open it too — use this on your home Wi-Fi, not a café's.</span>
+          </span>
+        </label>
+        <div class="row" style="margin-top:16px;"><button type="submit">Finish setup</button></div>
+      </form>
+      <p class="muted" style="margin-top:14px; font-size:0.82rem;">
+        Turning it on takes effect the next time you start disqo jobs.
+      </p>
     </div>
 
   {# ---------------------------------------------------------------- #}

@@ -45,6 +45,16 @@ updating or deleting disqo jobs never touches them:
 Set `JOBPILOT_DATA_DIR` to put that somewhere else — a synced folder, say. The
 **Data** page shows the current location, what's in it, and the backups.
 
+### On your phone
+
+The dashboard works on a phone screen, and Setup asks whether to allow it —
+change your mind any time under **Settings → On your phone**. With it on, the
+window that starts disqo jobs prints an address like `http://192.168.1.20:8000`;
+open that in your phone's browser while disqo jobs is running. It only works for
+devices on the same Wi-Fi and nothing goes through the internet — but there's no
+password either, so anyone on that network could open it. Use it at home, and
+leave it off on networks you don't trust.
+
 ## Install for development
 
 ```bash

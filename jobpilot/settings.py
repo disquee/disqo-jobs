@@ -33,6 +33,10 @@ class Settings(BaseModel):
     local_base_url: str = ""
     local_model: str = ""
     onboarded: bool = False
+    # Serve the dashboard to the local network so a phone on the same Wi-Fi can
+    # open it. Off by default: the dashboard has no login, so binding wide is a
+    # choice the user makes knowingly, not a side effect of installing.
+    mobile_access: bool = False
 
     @property
     def is_manual(self) -> bool:
@@ -56,6 +60,35 @@ def load_settings() -> Settings:
 def save_settings(settings: Settings) -> Settings:
     SETTINGS_PATH.write_text(settings.model_dump_json(indent=2), encoding="utf-8")
     return settings
+
+
+#: Where the dashboard binds: just this computer, or every interface so a phone
+#: on the same network can reach it.
+LOCAL_HOST = "127.0.0.1"
+MOBILE_HOST = "0.0.0.0"
+
+
+def serve_host() -> str:
+    """The address the dashboard should bind to, per the saved setting."""
+    return MOBILE_HOST if load_settings().mobile_access else LOCAL_HOST
+
+
+def lan_ip() -> str:
+    """This machine's address on the local network, or "" if there isn't one.
+
+    A connected UDP socket learns which interface would route to the address —
+    nothing is actually sent, so the app's nothing-leaves-your-machine promise
+    holds. The target just has to be routable; it's never contacted.
+    """
+    import socket
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("192.0.2.1", 1))  # TEST-NET-1: reserved, never real
+            ip = s.getsockname()[0]
+        return "" if ip.startswith("127.") else ip
+    except OSError:
+        return ""
 
 
 def has_api_key() -> bool:

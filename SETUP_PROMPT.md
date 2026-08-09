@@ -208,6 +208,14 @@ disqo-jobs apply <job_id>         # prefills; the human submits
 Outputs land in `output/resumes/`, `output/cover_letters/`, and
 `output/applications.csv`.
 
+**Phone access.** `serve` binds to `127.0.0.1` unless the user has turned on
+phone access (the setup wizard asks; later it's Settings → On your phone, or
+`mobile_access` in `settings.json`). With it on, `serve` binds `0.0.0.0` and
+prints the machine's LAN address so a phone on the same Wi-Fi can open the
+dashboard. Make sure the user understands the trade before enabling it: the
+dashboard has **no authentication**, so this is for trusted home networks only —
+never expose it to the public internet or a shared/untrusted network.
+
 **Advise the user to read the first few tailored resumes end to end.** This is the
 step where a weak model shows itself, and where an unsupported claim would otherwise
 reach a real employer under their name.

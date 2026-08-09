@@ -58,6 +58,7 @@ from ..settings import (
     env_status,
     set_env,
     has_api_key,
+    lan_ip,
     load_settings,
     needs_setup,
     profile_ready,
@@ -838,6 +839,8 @@ def setup(request: Request, step: str = "", msg: str = "", err: str = ""):
             if (PROFILE_DIR / "resume_master.md").exists() else "",
             "roles": ROLE_SUGGESTIONS,
             "companies": COMPANY_SUGGESTIONS,
+            "mobile_ip": lan_ip(),
+            "port": request.url.port or 8000,
             "msg": msg,
             "err": err,
         },
@@ -931,6 +934,14 @@ def setup_targets(
     settings = load_settings()
     settings.onboarded = True
     save_settings(settings)
+    return RedirectResponse("/setup?step=phone", status_code=303)
+
+
+@app.post("/setup/phone")
+def setup_phone(mobile_access: str = Form("")):
+    settings = load_settings()
+    settings.mobile_access = bool(mobile_access)
+    save_settings(settings)
     return RedirectResponse("/setup?step=done", status_code=303)
 
 
@@ -957,6 +968,8 @@ def settings_page(request: Request, msg: str = "", err: str = ""):
             "local_models": offered, "local_found": bool(offered),
             "env_labels": ENV_KEYS, "profile": profile,
             "screening": profile.get("screening_defaults") or {},
+            "mobile_ip": lan_ip(),
+            "port": request.url.port or 8000,
             "data_dir": str(DATA_DIR),
             "resume_chars": len((PROFILE_DIR / "resume_master.md").read_text(encoding="utf-8"))
             if (PROFILE_DIR / "resume_master.md").exists() else 0,
@@ -1004,6 +1017,23 @@ def settings_behaviour(
     cfg["exclude_company"] = [s.strip() for s in exclude_company.splitlines() if s.strip()]
     config_save(cfg)
     return RedirectResponse("/settings?msg=Search behaviour saved.", status_code=303)
+
+
+@app.post("/settings/mobile")
+def settings_mobile(mobile_access: str = Form("")):
+    """Serve to the local network so a phone can open the dashboard.
+
+    The bind address is picked when the server starts, so flipping this takes
+    effect on the next launch — say so instead of letting the user wonder why
+    their phone still can't connect."""
+    settings = load_settings()
+    settings.mobile_access = bool(mobile_access)
+    save_settings(settings)
+    if settings.mobile_access:
+        msg = "Phone access on — it starts working the next time you start disqo jobs."
+    else:
+        msg = "Phone access off — applies the next time you start disqo jobs."
+    return RedirectResponse(f"/settings?msg={msg}", status_code=303)
 
 
 @app.post("/settings/keys")

@@ -168,12 +168,25 @@ def prep(
 
 
 @app.command()
-def serve(host: str = "127.0.0.1", port: int = 8000):
+def serve(
+    host: str = typer.Option(
+        None, help="Address to bind. Defaults to the phone-access setting: "
+                   "127.0.0.1 normally, every interface when it's on."),
+    port: int = 8000,
+):
     """Launch the local review dashboard."""
     import uvicorn
 
+    from .settings import LOCAL_HOST, lan_ip, serve_host
+
     init_db()
-    console.print(f"[green]Dashboard:[/] http://{host}:{port}")
+    if host is None:
+        host = serve_host()
+    console.print(f"[green]Dashboard:[/] http://{LOCAL_HOST}:{port}")
+    if host != LOCAL_HOST:
+        ip = lan_ip()
+        if ip:
+            console.print(f"[green]On your phone:[/] http://{ip}:{port}  (same Wi-Fi)")
     uvicorn.run("jobpilot.dashboard.server:app", host=host, port=port, reload=False)
 
 

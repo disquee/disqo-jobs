@@ -40,4 +40,6 @@ say "Starting disqo jobs at $URL"
 say "Leave this window open while you use it. Close it to quit."
 ( sleep 2; command -v open >/dev/null 2>&1 && open "$URL" || \
   { command -v xdg-open >/dev/null 2>&1 && xdg-open "$URL"; } ) >/dev/null 2>&1 &
-python -m uvicorn jobpilot.dashboard.server:app --host 127.0.0.1 --port 8000
+# Through the CLI, not uvicorn directly: serve reads the phone-access setting
+# and prints the on-your-phone address when it's switched on.
+python -m jobpilot.cli serve --port 8000

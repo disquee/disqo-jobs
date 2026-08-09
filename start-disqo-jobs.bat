@@ -30,7 +30,9 @@ echo.
 echo   Starting disqo jobs at http://127.0.0.1:8000
 echo   Leave this window open while you use it. Close it to quit.
 start "" http://127.0.0.1:8000
-python -m uvicorn jobpilot.dashboard.server:app --host 127.0.0.1 --port 8000
+REM Through the CLI, not uvicorn directly: serve reads the phone-access setting
+REM and prints the on-your-phone address when it's switched on.
+python -m jobpilot.cli serve --port 8000
 goto :eof
 
 :fail

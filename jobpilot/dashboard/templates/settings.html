@@ -149,6 +149,37 @@
 </div>
 
 <div class="card">
+  <h3>On your phone</h3>
+  <p class="muted" style="font-size:0.85rem;">
+    The dashboard works on a phone screen. With this on, any device on the same
+    Wi-Fi can open disqo jobs while it's running — nothing goes through the
+    internet. There's no password, so anyone on the same network could open it
+    too: use it on your home Wi-Fi, not a café's.
+  </p>
+  <form method="post" action="/settings/mobile" style="margin-top:12px;">
+    <label class="check" style="max-width:420px;">
+      <input type="checkbox" name="mobile_access" value="on"
+             {{ 'checked' if settings.mobile_access }}>
+      Let my phone open the dashboard
+    </label>
+    {% if settings.mobile_access %}
+      <p style="margin-top:10px;">
+        {% if mobile_ip %}
+          On your phone, open <code>http://{{ mobile_ip }}:{{ port }}</code>
+        {% else %}
+          <span class="muted">Couldn't work out this computer's network address —
+            is it connected to Wi-Fi?</span>
+        {% endif %}
+      </p>
+    {% endif %}
+    <div class="row" style="margin-top:12px;"><button type="submit">Save phone access</button></div>
+  </form>
+  <p class="muted" style="margin-top:10px; font-size:0.82rem;">
+    Changes apply the next time you start disqo jobs.
+  </p>
+</div>
+
+<div class="card">
   <h3>Where your data is stored</h3>
   <p><code>{{ data_dir }}</code></p>
   <p class="muted" style="font-size:0.83rem; margin-top:8px;">
