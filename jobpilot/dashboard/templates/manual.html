@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Score' if kind == 'fit' else 'Tailor' }} · {{ job.title }}{% endblock %}
+{% block title %}{{ {'fit': 'Score', 'cv': 'CV'}.get(kind, 'Tailor') }} · {{ job.title }}{% endblock %}
 {% block content %}
 <p><a href="/job/{{ job.id }}" class="muted">← Back to {{ job.title }}</a></p>
 
@@ -7,7 +7,7 @@
   {% if err %}<div class="note tone-warn">{{ err }}</div>{% endif %}
 
   <div class="card">
-    <h2 class="page-title">{{ 'Score this job' if kind == 'fit' else 'Write the application' }}</h2>
+    <h2 class="page-title">{{ {'fit': 'Score this job', 'cv': 'Write the CV'}.get(kind, 'Write the application') }}</h2>
     <p class="muted" style="margin-top:8px;">
       You're set up without an API key, so this takes three steps. It's the same work
       the automatic mode does — you're just carrying the message.
@@ -32,13 +32,16 @@
     <h3>Paste the reply here</h3>
     <form method="post" action="/job/{{ job.id }}/manual/{{ kind }}">
       <textarea name="response" style="min-height:220px;"
-        placeholder="Paste everything the assistant wrote, including the curly braces."
+        placeholder="{{ 'Paste the whole CV the assistant wrote.' if kind == 'cv'
+                       else 'Paste everything the assistant wrote, including the curly braces.' }}"
         required></textarea>
       <div class="row" style="margin-top:12px;">
         <button type="submit">Save it</button>
-        <span class="muted" style="font-size:0.82rem;">
-          If it complains the reply can't be read, copy the assistant's full answer again —
-          it needs the JSON part.</span>
+        {% if kind != 'cv' %}
+          <span class="muted" style="font-size:0.82rem;">
+            If it complains the reply can't be read, copy the assistant's full answer again —
+            it needs the JSON part.</span>
+        {% endif %}
       </div>
     </form>
   </div>

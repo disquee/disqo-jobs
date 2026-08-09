@@ -61,6 +61,27 @@
 </div>
 
 <div class="card">
+  <h3>Application documents</h3>
+  <form method="post" action="/settings/documents">
+    <label class="check" style="display:flex; gap:8px; align-items:flex-start;">
+      <input type="checkbox" name="generate_cv" value="1"
+             {{ 'checked' if settings.generate_cv }} style="margin-top:3px;">
+      <span>Also write a full-length CV for every tailored job
+        <span class="muted" style="display:block; font-size:0.85rem;">The complete
+          history — every role, education, skills — tailored to the posting but not
+          condensed to one page. Adds a second document (and a little AI time and
+          cost) per job.</span>
+      </span>
+    </label>
+    <p class="muted" style="font-size:0.82rem; margin-top:8px;">
+      This is only the default: every job's page has its own CV switch, and a
+      choice made there wins over this one.
+    </p>
+    <div class="row" style="margin-top:14px;"><button type="submit">Save documents</button></div>
+  </form>
+</div>
+
+<div class="card">
   <h3>AI and job-board keys</h3>
   <p class="muted" style="font-size:0.85rem;">
     Leave a field blank to keep what's already saved. Keys are stored in a

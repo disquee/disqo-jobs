@@ -5,7 +5,8 @@
 <div class="wizard">
   <ol class="steps">
     {% for key, label in [('welcome','Start'), ('key','AI access'), ('resume','Resume'),
-                          ('profile','About you'), ('targets','What to look for'),
+                          ('cv','CV'), ('profile','About you'),
+                          ('targets','What to look for'),
                           ('phone','Your phone'), ('done','Finish')] %}
       <li class="{{ 'is-current' if step == key else '' }}">{{ label }}</li>
     {% endfor %}
@@ -18,7 +19,7 @@
   {% if step == 'welcome' %}
     <div class="card">
       <h2 class="page-title">Let's get you set up</h2>
-      <p class="muted" style="margin-top:8px;">Six short steps. There's no account and no
+      <p class="muted" style="margin-top:8px;">Seven short steps. There's no account and no
         server — <strong>disqo jobs never receives your data</strong>. Your resume and
         job history stay on this computer.</p>
 
@@ -196,7 +197,7 @@
           placeholder="Paste your resume here. Plain text is fine — headings, jobs, bullet points.">{{ resume_text }}</textarea>
         <div class="row" style="margin-top:12px;">
           <button type="submit">Save resume</button>
-          {% if profile_ready %}<a class="btn secondary" href="/setup?step=profile">Keep what I have</a>{% endif %}
+          {% if profile_ready %}<a class="btn secondary" href="/setup?step=cv">Keep what I have</a>{% endif %}
         </div>
       </form>
 
@@ -204,6 +205,43 @@
         <strong>More detail is better.</strong> Include every role, and put numbers on
         what you did — "cut support tickets 40%" beats "improved support". disqo jobs can
         only reuse what's here; it will never invent experience for you.
+      </p>
+    </div>
+
+  {# ---------------------------------------------------------------- #}
+  {% elif step == 'cv' %}
+    <div class="card">
+      <h2 class="page-title">Want a full CV as well?</h2>
+      <p class="muted" style="margin-top:8px;">For every job it prepares, disqo jobs
+        writes a one-page tailored resume and a cover letter. It can also write a
+        <strong>full-length CV</strong> — your complete history with every role, education
+        and skills, tailored to the posting but not condensed. Useful for academic,
+        research, and government roles, and in countries where employers expect a CV.</p>
+
+      <form method="post" action="/setup/cv" style="margin-top:18px;">
+        <label class="choice">
+          <input type="radio" name="generate_cv" value="no"
+                 {{ 'checked' if not settings.generate_cv }}>
+          <span>
+            <strong>Resume only</strong> — recommended for most US applications
+            <span class="muted">You can still turn the CV on for individual jobs —
+              each job's page has its own switch.</span>
+          </span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="generate_cv" value="yes"
+                 {{ 'checked' if settings.generate_cv }}>
+          <span>
+            <strong>Resume and CV</strong>
+            <span class="muted">Adds a second document to every tailored job — a
+              little more AI time and cost per job. You can turn it off for
+              individual jobs.</span>
+          </span>
+        </label>
+        <div class="row" style="margin-top:16px;"><button type="submit">Continue</button></div>
+      </form>
+      <p class="muted" style="margin-top:14px; font-size:0.82rem;">
+        You can change this any time in Settings.
       </p>
     </div>
 
