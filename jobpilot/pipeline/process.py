@@ -1,6 +1,13 @@
-"""Orchestration: score discovered jobs and generate tailored artifacts."""
+"""Orchestration: score discovered jobs and generate tailored artifacts.
+
+Both passes persist each job as it finishes, so interrupting mid-run loses
+nothing — the next run picks up whatever is still pending. The progress
+callbacks exist so the person watching a multi-minute run knows that.
+"""
 
 from __future__ import annotations
+
+from typing import Callable, Optional
 
 from ..config import load_config
 from ..models import Application, Job, Status
@@ -9,11 +16,16 @@ from .fit import score_job
 from .render import cover_path, render_pdf, resume_path
 from .tailor import tailor_job
 
+#: (done, total, label) — called before each job is worked on.
+Progress = Callable[[int, int, str], None]
 
-def score_pending() -> int:
+
+def score_pending(on_progress: Optional[Progress] = None) -> int:
     """Score every job still in 'discovered' status. Returns count scored."""
     jobs = list_jobs(Status.discovered)
-    for job in jobs:
+    for i, job in enumerate(jobs, start=1):
+        if on_progress:
+            on_progress(i, len(jobs), f"Scoring {i}/{len(jobs)} · {job.company}")
         score_job(job)
         job.status = Status.scored
         save_job(job)
@@ -35,14 +47,26 @@ def tailor_job_full(job: Job) -> Application:
     return app
 
 
-def tailor_above_threshold() -> int:
-    """Tailor all scored jobs at/above the configured fit threshold."""
+def tailor_above_threshold(
+    limit: Optional[int] = None, on_progress: Optional[Progress] = None
+) -> int:
+    """Tailor scored jobs at/above the configured fit threshold.
+
+    Best fit first, so a ``limit`` — or an interruption — spends the API
+    budget on the strongest matches. Each job takes several LLM calls and a
+    minute or more; anything above the threshold can add up.
+    """
     threshold = int(load_config().get("fit_threshold", 70))
-    jobs = [
-        j for j in list_jobs(Status.scored)
-        if (j.fit_score or 0) >= threshold
-    ]
-    for job in jobs:
+    jobs = sorted(
+        (j for j in list_jobs(Status.scored) if (j.fit_score or 0) >= threshold),
+        key=lambda j: j.fit_score or 0, reverse=True,
+    )
+    if limit is not None:
+        jobs = jobs[:max(0, limit)]
+    for i, job in enumerate(jobs, start=1):
+        if on_progress:
+            on_progress(i, len(jobs),
+                        f"Tailoring {i}/{len(jobs)} · {job.title[:40]} @ {job.company}")
         if get_application(job.id) is None:
             tailor_job_full(job)
         else:

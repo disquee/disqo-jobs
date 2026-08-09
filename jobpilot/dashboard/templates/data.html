@@ -99,8 +99,11 @@
     </div>
     <p class="muted" style="margin-top:10px; font-size:0.83rem;">
       {{ '{:,}'.format(usage.input_tokens) }} tokens in, {{ '{:,}'.format(usage.output_tokens) }} out.
-      <strong>Token counts are exact; dollars are an estimate</strong> — rates change and
-      vary by model, so set yours below.
+      <strong>Token counts are exact; dollars are an estimate</strong> —
+      {% if usage.rates_are_custom %}priced at the rates you set below.
+      {% else %}priced at the list rates for the model you're using
+      (${{ usage.input_rate }} in / ${{ usage.output_rate }} out per million tokens).
+      Prices drift — correct them below if yours differ.{% endif %}
     </p>
   {% else %}
     <p class="muted" style="font-size:0.86rem;">No AI requests yet.</p>

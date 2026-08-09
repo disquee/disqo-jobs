@@ -199,11 +199,17 @@ discover → fit-score → tailor → human review → assisted apply → CSV lo
 ```
 
 ```bash
-disqo-jobs discover --tailor      # pull, score, tailor above threshold
-disqo-jobs status                 # counts by stage
-disqo-jobs serve                  # review dashboard at 127.0.0.1:8000
-disqo-jobs apply <job_id>         # prefills; the human submits
+disqo-jobs discover --tailor            # pull, score, tailor above threshold
+disqo-jobs discover --tailor --limit 5  # cap the tailor pass, best fit first
+disqo-jobs status                       # counts by stage
+disqo-jobs serve                        # review dashboard at 127.0.0.1:8000
+disqo-jobs apply <job_id>               # prefills; the human submits
 ```
+
+Tailoring runs several LLM calls per job (a minute or more each), so a big
+first run can take a while and cost real money — `--limit` keeps it bounded.
+Interrupting is safe: every scored or tailored job is saved as it finishes,
+and re-running resumes whatever is still pending.
 
 Outputs land in `output/resumes/`, `output/cover_letters/`, and
 `output/applications.csv`.

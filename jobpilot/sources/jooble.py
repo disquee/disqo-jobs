@@ -6,7 +6,7 @@ import httpx
 
 from ..config import env
 from ..models import Job
-from .base import JobSource, html_to_text
+from .base import JobSource, clean_company, html_to_text
 
 BASE = "https://jooble.org/api"
 
@@ -37,7 +37,7 @@ class JoobleSource(JobSource):
                 Job(
                     source=self.name,
                     title=(r.get("title") or "").strip(),
-                    company=(r.get("company") or "").strip(),
+                    company=clean_company(r.get("company") or ""),
                     location=(r.get("location") or "").strip(),
                     description=html_to_text(r.get("snippet", "")),
                     apply_url=r.get("link", ""),

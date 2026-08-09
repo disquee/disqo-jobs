@@ -28,6 +28,10 @@ console = Console()
 def discover_cmd(
     score: bool = typer.Option(True, help="Score new jobs after discovery."),
     tailor: bool = typer.Option(False, help="Also tailor jobs above the fit threshold."),
+    limit: int = typer.Option(
+        None, "--limit",
+        help="Tailor at most this many jobs, best fit first. Each one costs "
+             "several AI calls, so cap a big first run."),
 ):
     """Pull jobs from all configured sources into the local queue."""
     init_db()
@@ -42,11 +46,18 @@ def discover_cmd(
             f"[yellow]Skipped (no API key):[/] "
             f"{', '.join(summary['unavailable_sources'])}"
         )
+    # Each job is saved the moment it finishes, so Ctrl-C loses nothing —
+    # but nobody knows that unless the long-running steps say so.
+    step = lambda done, total, label: console.print(f"  [dim]{label}[/]")  # noqa: E731
     if score:
-        n = score_pending()
+        n = score_pending(on_progress=step)
         console.print(f"[green]Scored[/] {n} job(s).")
     if tailor:
-        n = tailor_above_threshold()
+        console.print(
+            "[dim]Tailoring takes a minute or three per job. Safe to interrupt — "
+            "finished jobs are kept, and re-running resumes the rest.[/]"
+        )
+        n = tailor_above_threshold(limit=limit, on_progress=step)
         console.print(f"[green]Tailored[/] {n} job(s) above threshold.")
 
 
@@ -65,7 +76,10 @@ def status():
     for st in Status:
         table.add_row(st.value, str(counts.get(st.value, 0)))
     console.print(table)
-    console.print(f"CSV log: {CSV_PATH}")
+    # The CSV only exists once something has been applied to; pointing at a
+    # file that isn't there yet just confuses a first run.
+    if CSV_PATH.exists():
+        console.print(f"CSV log: {CSV_PATH}")
 
 
 @app.command()

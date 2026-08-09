@@ -94,3 +94,29 @@ def test_greenhouse_filters_by_query(monkeypatch):
     jobs = greenhouse_mod.GreenhouseSource("acme").search("engineer", "", 10)
     assert [j.title for j in jobs] == ["Backend Engineer"]
     assert jobs[0].company == "acme"
+
+
+# ---- company-name cleanup (aggregators mangle names) -----------------------
+
+from jobpilot.sources.base import clean_company
+
+
+def test_clean_company_repairs_adzuna_inc_strip():
+    """Adzuna strips ", Inc" mid-word: "…Physics, Incorporated" arrives as
+    "…Physicsorporated". The fragment goes; the real name stays."""
+    assert clean_company("American Institute of Physicsorporated") == \
+        "American Institute of Physics"
+
+
+def test_clean_company_leaves_real_names_alone():
+    for name in ("Acme", "Acme Incorporated", "Data Corporated",
+                 "Stripe, Inc.", "O'Brien & Sons"):
+        assert clean_company(name) == name
+
+
+def test_clean_company_replaces_junk_with_unknown():
+    """A navigation label in a cover letter would sink an application; an
+    obvious "Unknown" gets noticed and fixed during review."""
+    assert clean_company("Search Our") == "Unknown"
+    assert clean_company("  ") == "Unknown"
+    assert clean_company("Confidential") == "Unknown"

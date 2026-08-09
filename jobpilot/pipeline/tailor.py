@@ -15,7 +15,10 @@ from ..models import Application, Job, ScreeningQA
 GROUNDING = (
     "CRITICAL: Use ONLY facts present in the master resume and profile. Do NOT "
     "invent employers, titles, dates, metrics, or skills. You may reorder, "
-    "rephrase, and emphasize existing content to match the posting."
+    "rephrase, and emphasize existing content to match the posting. "
+    "Numbers and counts must be copied exactly: never pluralize a single "
+    "instance (one budget is not 'budgets'), round a figure up, or widen a "
+    "specific claim into a broader one the resume does not support."
 )
 
 UNTRUSTED = (

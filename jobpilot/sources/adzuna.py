@@ -6,7 +6,7 @@ import httpx
 
 from ..config import env
 from ..models import Job
-from .base import JobSource, html_to_text
+from .base import JobSource, clean_company, html_to_text
 
 BASE = "https://api.adzuna.com/v1/api/jobs"
 
@@ -52,7 +52,7 @@ class AdzunaSource(JobSource):
                 Job(
                     source=self.name,
                     title=r.get("title", "").strip(),
-                    company=(r.get("company") or {}).get("display_name", "").strip(),
+                    company=clean_company((r.get("company") or {}).get("display_name", "")),
                     location=(r.get("location") or {}).get("display_name", "").strip(),
                     description=html_to_text(r.get("description", "")),
                     apply_url=r.get("redirect_url", ""),

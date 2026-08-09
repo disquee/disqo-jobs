@@ -1101,10 +1101,10 @@ def discover_start(score: str = Form("1"), tailor: str = Form("")):
             d, t_ + (2 if want_score else 0), f"Searching · {label}"))
         if want_score:
             progress(0, 0, "Scoring new jobs")
-            summary["scored"] = score_pending()
+            summary["scored"] = score_pending(on_progress=progress)
             if want_tailor:
                 progress(0, 0, "Writing applications for the best matches")
-                summary["tailored"] = tailor_above_threshold()
+                summary["tailored"] = tailor_above_threshold(on_progress=progress)
         return summary
 
     tasks.start("discover", job, label="Starting")
