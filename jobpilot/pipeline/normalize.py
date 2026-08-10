@@ -69,14 +69,35 @@ def required_clearance(text: str) -> Optional[str]:
     return None
 
 
+def dealbreaker_filters_active(cfg: dict) -> bool:
+    """Whether either posting-text filter has been switched on at all."""
+    return bool(cfg.get("needs_sponsorship")) or bool(
+        str(cfg.get("clearance_held") or "").strip()
+    )
+
+
+def hits_dealbreaker(job: Job, cfg: dict) -> bool:
+    """True when the configured filters would drop this posting.
+
+    One decision shared by discovery and the queue sweep, so the two can
+    never disagree about what counts as a dealbreaker.
+    """
+    posting = f"{job.title}\n{job.description}"
+    if cfg.get("needs_sponsorship") and denies_sponsorship(posting):
+        return True
+    # Blank means the user never said — filter nothing rather than guess.
+    held = str(cfg.get("clearance_held") or "").strip().lower()
+    if held:
+        required = required_clearance(posting)
+        if required and CLEARANCE_RANK[required] > CLEARANCE_RANK.get(held, 0):
+            return True
+    return False
+
+
 def apply_filters(jobs: list[Job]) -> list[Job]:
     cfg = load_config()
     bad_titles = [k.lower() for k in cfg.get("exclude_title_keywords", [])]
     bad_company = [c.lower() for c in cfg.get("exclude_company", [])]
-    needs_sponsorship = bool(cfg.get("needs_sponsorship"))
-    # Blank means the user never said — filter nothing rather than guess.
-    held = str(cfg.get("clearance_held") or "").strip().lower()
-    held_rank = CLEARANCE_RANK.get(held, 0)
 
     kept: list[Job] = []
     seen: set[str] = set()
@@ -89,13 +110,8 @@ def apply_filters(jobs: list[Job]) -> list[Job]:
             continue
         if any(c in company_l for c in bad_company):
             continue
-        posting = f"{job.title}\n{job.description}"
-        if needs_sponsorship and denies_sponsorship(posting):
+        if hits_dealbreaker(job, cfg):
             continue
-        if held:
-            required = required_clearance(posting)
-            if required and CLEARANCE_RANK[required] > held_rank:
-                continue
         if job.id in seen:
             continue
         seen.add(job.id)

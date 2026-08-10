@@ -134,3 +134,21 @@ def test_clearance_filter_respects_level_held(monkeypatch):
     monkeypatch.setattr(normalize, "load_config",
                         _filter_cfg(clearance_held="ts/sci"))
     assert len(normalize.apply_filters(jobs)) == 3
+
+
+def test_dealbreaker_helpers_share_one_decision():
+    from jobpilot.pipeline.normalize import (
+        dealbreaker_filters_active, hits_dealbreaker,
+    )
+
+    assert not dealbreaker_filters_active({})
+    assert not dealbreaker_filters_active({"clearance_held": ""})
+    assert dealbreaker_filters_active({"needs_sponsorship": True})
+    assert dealbreaker_filters_active({"clearance_held": "none"})
+
+    job = _job(description="TS/SCI clearance required. We cannot sponsor visas.")
+    # Nothing configured → nothing is a dealbreaker, whatever the posting says.
+    assert not hits_dealbreaker(job, {})
+    assert hits_dealbreaker(job, {"needs_sponsorship": True})
+    assert hits_dealbreaker(job, {"clearance_held": "secret"})
+    assert not hits_dealbreaker(job, {"clearance_held": "ts/sci"})

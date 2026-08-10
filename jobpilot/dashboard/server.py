@@ -163,7 +163,8 @@ templates.env.globals["job_date"] = job_date
 
 # Posting-text detectors, so pages can show what the discover filters saw.
 from ..pipeline.normalize import (  # noqa: E402  (import placed by its use)
-    CLEARANCE_LABELS, denies_sponsorship, required_clearance,
+    CLEARANCE_LABELS, dealbreaker_filters_active, denies_sponsorship,
+    hits_dealbreaker, required_clearance,
 )
 
 templates.env.globals["denies_sponsorship"] = denies_sponsorship
@@ -278,6 +279,22 @@ def _clearable(jobs: list, days: int) -> list:
     ]
 
 
+def _sweepable(jobs: list, cfg: dict) -> list:
+    """Queue entries the sponsorship/clearance filters would have dropped.
+
+    The filters only apply to newly found jobs, so anything discovered before
+    they were set is still sitting in the queue. Same protections as the age
+    cleanup: applied, prepped, and logged jobs are records, not postings."""
+    logged = job_ids_with_activity()
+    return [
+        job for job in jobs
+        if hits_dealbreaker(job, cfg)
+        and job.status != Status.applied
+        and job.prep_status == PrepStatus.none
+        and job.id not in logged
+    ]
+
+
 def _remove_jobs(jobs: list) -> int:
     """Delete jobs, their generated applications, and the files behind them.
 
@@ -318,8 +335,20 @@ def index(request: Request, q: str = "", removed: int = 0):
          "cleanup": cleanup,
          "cleanup_age": CLEANUP_DEFAULT_AGE,
          "cleanup_default": dict(cleanup).get(CLEANUP_DEFAULT_AGE, 0),
+         "sweep_active": dealbreaker_filters_active(cfg),
+         "sweep_count": len(_sweepable(jobs, cfg)),
          "removed": removed},
     )
+
+
+@app.post("/jobs/sweep")
+def jobs_sweep():
+    """Apply the sponsorship/clearance filters to the queue, once, on demand."""
+    cfg = load_config()
+    if not dealbreaker_filters_active(cfg):
+        return RedirectResponse("/jobs", status_code=303)
+    removed = _remove_jobs(_sweepable(_queue_jobs(), cfg))
+    return RedirectResponse(f"/jobs?removed={removed}", status_code=303)
 
 
 @app.post("/jobs/cleanup")

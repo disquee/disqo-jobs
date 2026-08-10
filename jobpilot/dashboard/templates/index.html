@@ -123,6 +123,31 @@
   </details>
 {% endif %}
 
+{% if jobs and sweep_active and sweep_count %}
+  <details class="tidy">
+    <summary>Sweep out dealbreakers
+      <span class="muted" style="font-weight:400;">{{ sweep_count }}
+        job{{ '' if sweep_count == 1 else 's' }} your filters would have skipped</span></summary>
+    <form class="tidybody" method="post" action="/jobs/sweep"
+          data-confirm="Remove {{ sweep_count }} job{{ '' if sweep_count == 1 else 's' }} that hit your sponsorship or clearance filters?">
+      <p class="muted" style="font-size:0.86rem;">
+        Your sponsorship and clearance filters only apply to newly found jobs.
+        These were already in the queue when you set them — each one says it
+        can't sponsor a visa, or requires a clearance above yours. Open any
+        job to see the tag the filter saw.
+      </p>
+      <div class="row" style="margin-top:14px;">
+        <button class="danger" type="submit">Remove {{ sweep_count }}</button>
+      </div>
+      <p class="muted" style="margin-top:12px; font-size:0.82rem;">
+        Never touches a job you applied to, set up prep for, or entered in your
+        work search log. Deleted for real, not hidden — your
+        <a href="/data">daily backup</a> still has them.
+      </p>
+    </form>
+  </details>
+{% endif %}
+
 {% if not jobs %}
   <div class="tablecard"><div class="empty">
     <p style="font-weight:600; color:var(--ink);">Nothing in the queue</p>
