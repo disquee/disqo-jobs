@@ -186,6 +186,14 @@ Edit `config.yaml`:
   nothing and is handled gracefully, so curate freely.
 - `fit_threshold` — see the recalibration note in Phase 2.
 - `exclude_title_keywords`, `exclude_company` — case-insensitive substring filters.
+- `needs_sponsorship`, `clearance_held` — filters that read the posting's own
+  text. `needs_sponsorship: true` drops jobs that say they can't sponsor a
+  visa; `clearance_held` (one of `none`, `public trust`, `secret`,
+  `top secret`, `ts/sci`) drops jobs requiring a clearance above what the
+  user holds. Both are conservative: a posting that never mentions the topic
+  is always kept, and both are off until the user sets them (also editable in
+  Settings → How the search behaves). Ask the user about both — someone who
+  needs sponsorship or holds no clearance saves real review time here.
 
 Job-board keys are optional. Without `ADZUNA_*` / `JOOBLE_API_KEY`, those sources are
 skipped and reported; ATS boards still work with no key at all.

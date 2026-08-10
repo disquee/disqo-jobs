@@ -56,6 +56,29 @@
       <label class="field"><span>Skip these companies — one per line</span>
         <textarea name="exclude_company" style="min-height:90px;">{{ cfg.exclude_company | join('\n') }}</textarea></label>
     </div>
+    <div class="formgrid" style="margin-top:14px;">
+      <label class="field"><span>Security clearance you hold</span>
+        <select name="clearance_held">
+          {% set held = cfg.get('clearance_held', '') %}
+          <option value="" {{ 'selected' if not held }}>Don't filter (default)</option>
+          <option value="none" {{ 'selected' if held == 'none' }}>None — skip jobs requiring any clearance</option>
+          <option value="public trust" {{ 'selected' if held == 'public trust' }}>Public Trust</option>
+          <option value="secret" {{ 'selected' if held == 'secret' }}>Secret</option>
+          <option value="top secret" {{ 'selected' if held == 'top secret' }}>Top Secret</option>
+          <option value="ts/sci" {{ 'selected' if held == 'ts/sci' }}>TS/SCI</option>
+        </select></label>
+      <label class="check" style="align-self:end;">
+        <input type="checkbox" name="needs_sponsorship" value="1"
+               {{ 'checked' if cfg.get('needs_sponsorship') }}>
+        I need visa sponsorship — skip jobs that say they can't sponsor
+      </label>
+    </div>
+    <p class="muted" style="font-size:0.82rem; margin-top:8px;">
+      Both read the posting's own words, so they only catch what a posting
+      actually says: jobs requiring a clearance above yours are skipped, and
+      jobs that never mention clearance or sponsorship are kept either way.
+      Applies to newly found jobs, not ones already in your queue.
+    </p>
     <div class="row" style="margin-top:14px;"><button type="submit">Save behaviour</button></div>
   </form>
 </div>

@@ -13,6 +13,12 @@
         {{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}
         · {% set label, tone = display_status(job.status) %}
           <span class="pill {{ 'tone-' ~ tone if tone }}">{{ '✓ ' if tone == 'ok' }}{{ label }}</span>
+        {# What the discover filters would see in this posting — shown so a
+           surprising keep (or a job added by hand) is explainable at a glance. #}
+        {% set posting = job.title ~ '\n' ~ job.description %}
+        {% set clearance = required_clearance(posting) %}
+        {% if denies_sponsorship(posting) %}<span class="pill tone-warn">No visa sponsorship</span>{% endif %}
+        {% if clearance %}<span class="pill tone-warn">{{ CLEARANCE_LABELS[clearance] }}</span>{% endif %}
       </p>
     </div>
     <div class="fit {{ 'hi' if (job.fit_score or 0) >= 70 else 'lo' }}" style="font-size:1.9rem;">

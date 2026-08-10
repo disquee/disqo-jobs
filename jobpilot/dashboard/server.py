@@ -161,6 +161,15 @@ def job_date(job) -> dict:
 
 templates.env.globals["job_date"] = job_date
 
+# Posting-text detectors, so pages can show what the discover filters saw.
+from ..pipeline.normalize import (  # noqa: E402  (import placed by its use)
+    CLEARANCE_LABELS, denies_sponsorship, required_clearance,
+)
+
+templates.env.globals["denies_sponsorship"] = denies_sponsorship
+templates.env.globals["required_clearance"] = required_clearance
+templates.env.globals["CLEARANCE_LABELS"] = CLEARANCE_LABELS
+
 
 @app.on_event("startup")
 def _startup() -> None:
@@ -1039,11 +1048,16 @@ def settings_sources(
     return RedirectResponse("/settings?msg=Search targets saved.", status_code=303)
 
 
+#: Values the clearance filter accepts; blank means "don't filter".
+CLEARANCE_CHOICES = ("", "none", "public trust", "secret", "top secret", "ts/sci")
+
+
 @app.post("/settings/behaviour")
 def settings_behaviour(
     fit_threshold: str = Form("55"), results_per_search: str = Form("25"),
     max_apply_per_day: str = Form("15"), exclude_title_keywords: str = Form(""),
-    exclude_company: str = Form(""),
+    exclude_company: str = Form(""), needs_sponsorship: str = Form(""),
+    clearance_held: str = Form(""),
 ):
     def as_int(value: str, default: int, lo: int, hi: int) -> int:
         try:
@@ -1057,6 +1071,8 @@ def settings_behaviour(
     cfg["max_apply_per_day"] = as_int(max_apply_per_day, 15, 1, 100)
     cfg["exclude_title_keywords"] = [s.strip() for s in exclude_title_keywords.splitlines() if s.strip()]
     cfg["exclude_company"] = [s.strip() for s in exclude_company.splitlines() if s.strip()]
+    cfg["needs_sponsorship"] = bool(needs_sponsorship)
+    cfg["clearance_held"] = clearance_held if clearance_held in CLEARANCE_CHOICES else ""
     config_save(cfg)
     return RedirectResponse("/settings?msg=Search behaviour saved.", status_code=303)
 
