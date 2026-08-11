@@ -38,6 +38,56 @@
   </div>
 </div>
 
+{% if activities %}
+<div class="card">
+  <div class="row" style="justify-content:space-between;">
+    <h3 style="margin:0;">Progress</h3>
+    {% set plabel, ptone = job_progress(activities) %}
+    <span class="pill {{ 'tone-' ~ ptone if ptone }}">{{ plabel }}</span>
+  </div>
+
+  {% for a in activities %}
+    <div class="row" style="margin-top:10px; gap:12px; align-items:baseline;">
+      <span class="muted" style="font-family:var(--mono); font-size:0.82rem;">{{ a.date }}</span>
+      <span style="flex:1;">{{ a.activity_type.value }}{% if a.notes %}
+        <span class="muted">· {{ a.notes.splitlines()[0] }}</span>{% endif %}</span>
+      <span class="pill">{{ a.result.value }}</span>
+    </div>
+  {% endfor %}
+
+  <form method="post" action="/job/{{ job.id }}/interview"
+        class="row" style="margin-top:16px; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+    <label class="field"><span>Date</span>
+      <input type="date" name="date" value="{{ today }}"></label>
+    <label class="field" style="flex:1; min-width:220px;"><span>Which conversation</span>
+      <input type="text" name="label" placeholder="Recruiter screen, hiring manager, panel…"></label>
+    <button type="submit" class="secondary">Add an interview</button>
+  </form>
+  <p class="muted" style="font-size:0.82rem; margin-top:8px;">
+    Add one per round. Each goes into your work search log too, so the weekly
+    record stays complete.
+  </p>
+
+  <div class="row" style="margin-top:14px;">
+    {% if plabel in ('Offer', 'Declined', 'Withdrawn') %}
+      <form class="inline" method="post" action="/job/{{ job.id }}/outcome">
+        <input type="hidden" name="outcome" value="progress">
+        <button class="secondary" type="submit">Back to in progress</button>
+      </form>
+    {% else %}
+      <form class="inline" method="post" action="/job/{{ job.id }}/outcome">
+        <input type="hidden" name="outcome" value="offer">
+        <button class="secondary" type="submit">Got an offer</button>
+      </form>
+      <form class="inline" method="post" action="/job/{{ job.id }}/outcome">
+        <input type="hidden" name="outcome" value="declined">
+        <button class="secondary" type="submit">Mark declined</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <div class="card">
   <div class="row" style="justify-content:space-between;">
     <h3 style="margin:0;">Interview prep</h3>

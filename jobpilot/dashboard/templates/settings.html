@@ -35,6 +35,67 @@
 </div>
 
 <div class="card">
+  <h3>Stuck on what to search?</h3>
+  <p class="muted" style="font-size:0.85rem;">
+    Reads your master resume and suggests titles that already fit, plus a few
+    directions you could pivot toward. Nothing is added until you choose it.
+  </p>
+  <form method="post" action="/settings/suggest" style="margin-top:14px;">
+    <button type="submit" class="secondary">Suggest roles and pivots</button>
+  </form>
+
+  {% if suggest_prompt %}
+    <p class="muted" style="font-size:0.85rem; margin-top:16px;">
+      You're in copy-and-paste mode. Copy this prompt into your AI chat, then
+      paste its whole reply below.
+    </p>
+    <textarea readonly style="min-height:140px; width:100%; margin-top:8px;"
+              onclick="this.select()">{{ suggest_prompt }}</textarea>
+    <form method="post" action="/settings/suggest/paste" style="margin-top:12px;">
+      <textarea name="reply" style="min-height:110px; width:100%;"
+                placeholder="Paste the reply here"></textarea>
+      <div class="row" style="margin-top:10px;"><button type="submit">Read the reply</button></div>
+    </form>
+  {% endif %}
+
+  {% if suggestions %}
+    {% if suggestions.titles %}
+      <h4 style="margin-top:22px;">Titles that fit your resume now</h4>
+      {% for t in suggestions.titles %}
+        <div class="row" style="margin-top:10px; align-items:baseline; gap:10px;">
+          <form method="post" action="/settings/suggest/add">
+            <input type="hidden" name="query" value="{{ t.title }}">
+            <input type="hidden" name="keep" value="{{ suggestions_json }}">
+            <button type="submit" class="secondary tiny">Add</button>
+          </form>
+          <span><strong>{{ t.title }}</strong>{% if t.why %}
+            <span class="muted" style="font-size:0.9em;"> · {{ t.why }}</span>{% endif %}</span>
+        </div>
+      {% endfor %}
+    {% endif %}
+    {% if suggestions.pivots %}
+      <h4 style="margin-top:26px;">Pivots worth testing</h4>
+      <p class="muted" style="font-size:0.82rem; margin-top:4px;">
+        Adding one runs it through the same search and scoring as everything
+        else, so the next discover cycle tells you how the market really looks.
+      </p>
+      {% for p in suggestions.pivots %}
+        <div class="row" style="margin-top:10px; align-items:baseline; gap:10px;">
+          <form method="post" action="/settings/suggest/add">
+            <input type="hidden" name="query" value="{{ p.entry_title }}">
+            <input type="hidden" name="keep" value="{{ suggestions_json }}">
+            <button type="submit" class="secondary tiny">Add</button>
+          </form>
+          <span><strong>{{ p.direction }}</strong>
+            <span class="muted" style="font-size:0.9em;"> · search "{{ p.entry_title }}".
+              {{ p.why }}</span></span>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+</div>
+
+<div class="card">
   <h3>How the search behaves</h3>
   <form method="post" action="/settings/behaviour">
     <div class="formgrid">

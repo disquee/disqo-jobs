@@ -99,8 +99,8 @@ code { font-family:var(--mono); font-size:0.88em; background:var(--surface-2);
 .brand-name { font-size:0.95rem; letter-spacing:0.06em; white-space:nowrap;
   text-transform:uppercase; }
 .navlinks { display:flex; gap:2px; }
-.navlinks a { padding:5px 10px; border-radius:var(--radius-sm); font-size:0.86rem;
-  font-weight:550; color:var(--ink-2); }
+.navlinks a { position:relative; padding:5px 10px; border-radius:var(--radius-sm);
+  font-size:0.86rem; font-weight:550; color:var(--ink-2); }
 .navlinks a:hover { background:var(--surface-2); color:var(--ink); text-decoration:none; }
 .navlinks a.is-current { background:var(--accent-bg); color:var(--accent-ink); font-weight:650; }
 
@@ -373,7 +373,10 @@ body.is-searching .hitcount { display:block; }
 .weekcount.tone-ok .weeknum { color:var(--ok); }
 thead th { border-bottom:1px solid var(--line); }
 .topbar { border-bottom:1px solid var(--line); }
-.navlinks a.is-current { box-shadow:inset 0 -2px 0 var(--brand-teal); }
+/* A pseudo-element, not an inset shadow: the shadow hugs the link's rounded
+   corners, which curls the line up at both ends. This stays flat. */
+.navlinks a.is-current::after { content:""; position:absolute; left:0; right:0;
+  bottom:0; height:2px; background:var(--brand-teal); }
 
 
 /* Cream marks things that want a second look, rather than tinting everything. */
@@ -410,8 +413,8 @@ button:hover, .btn:hover { filter:none; background:var(--ink-2); }
   border-color:var(--danger); }
 
 /* The amber is a marker, exactly as the site uses it. */
-.navlinks a.is-current { box-shadow:inset 0 -3px 0 var(--brand-amber); background:none;
-  color:var(--ink); }
+.navlinks a.is-current { background:none; color:var(--ink); }
+.navlinks a.is-current::after { height:3px; background:var(--brand-amber); }
 .pill.tone-accent { background:var(--brand-amber); color:#0B0B0B; border-color:var(--line); }
 .progress > span { background:var(--brand-amber); }
 

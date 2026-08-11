@@ -10,6 +10,10 @@ profile/resume_master.md
 profile/star_stories.csv
 profile/projects/
 
+# Machine-owned app state written by the setup wizard. Only toggles today, but
+# it should never show up dirty in git status or be committable by accident.
+settings.json
+
 # Python
 __pycache__/
 *.pyc
@@ -21,7 +25,3 @@ venv/
 jobpilot.db
 output/
 dist/
-
-# Machine-owned app state written by the setup wizard. Only toggles today, but
-# it should never show up dirty in git status or be committable by accident.
-settings.json

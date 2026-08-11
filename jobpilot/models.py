@@ -106,6 +106,28 @@ class ActivityResult(str, Enum):
     withdrawn = "Withdrawn"
 
 
+def job_progress(activities: list["WorkSearchActivity"]) -> tuple[str, str]:
+    """(label, tone) for where a candidacy stands, read off its logged activities.
+
+    The latest result decides: an offer or a rejection ends the story, and
+    anything else counts the interview rounds so far. Kept as a pure function
+    of the log because the log is already the record users maintain.
+    """
+    if not activities:
+        return ("Nothing logged yet", "")
+    latest = activities[-1].result
+    if latest == ActivityResult.offered:
+        return ("Offer", "ok")
+    if latest == ActivityResult.rejected:
+        return ("Declined", "")
+    if latest == ActivityResult.withdrawn:
+        return ("Withdrawn", "")
+    rounds = sum(1 for a in activities if a.activity_type == ActivityType.interview)
+    if rounds:
+        return (f"Interviewing, round {rounds}", "ok")
+    return ("Applied, waiting to hear", "accent")
+
+
 class WorkSearchActivity(BaseModel):
     """One dated work-search action, for unemployment reporting.
 

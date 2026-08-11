@@ -37,6 +37,7 @@ from ..models import (
     Job,
     PrepPlan,
     display_status,
+    job_progress,
     ActivityType,
     Application,
     PrepStatus,
@@ -49,6 +50,7 @@ from ..ingest import (
     fetch_posting, parse_competencies, parse_interviewers, resume_text, spreadsheet_rows,
 )
 from ..searchconfig import current as config_current, save as config_save
+from ..suggest import build_prompt as suggest_prompt, parse_reply as parse_suggestions, suggest as run_suggest
 from ..settings import (
     ENV_KEYS,
     check_llm,
@@ -81,6 +83,7 @@ from ..pipeline.process import tailor_job_full
 from ..pipeline.render import cover_path, cv_path, render_pdf, resume_path
 from ..llm import LOCAL_BASE_URL_DEFAULT
 from ..store import (
+    activities_for_job,
     activity_for_job,
     upsert_job,
     delete_activity,
@@ -357,8 +360,54 @@ def job_detail(request: Request, job_id: str, err: str = ""):
             "display_status": display_status,
             "settings": load_settings(),
             "cv_on": cv_enabled_for(job),
+            "activities": activities_for_job(job_id),
+            "job_progress": job_progress,
+            "today": date.today().isoformat(),
         },
     )
+
+
+@app.post("/job/{job_id}/interview")
+def add_interview(job_id: str, date_: str = Form("", alias="date"),
+                  label: str = Form(""), notes: str = Form("")):
+    """Log one interview round. Loops are many rounds, so this can be used as
+    often as needed; each round is also a work-search log entry for the week."""
+    job = get_job(job_id)
+    if job:
+        text = " ".join(label.split())
+        if notes.strip():
+            text = f"{text}\n{notes.strip()}" if text else notes.strip()
+        save_activity(WorkSearchActivity(
+            date=date_ or date.today().isoformat(),
+            company=job.company,
+            position=job.title,
+            contact=job.apply_url,
+            activity_type=ActivityType.interview,
+            result=ActivityResult.interviewing,
+            notes=text,
+            job_id=job.id,
+        ))
+    return RedirectResponse(f"/job/{job_id}", status_code=303)
+
+
+@app.post("/job/{job_id}/outcome")
+def set_outcome(job_id: str, outcome: str = Form("")):
+    """Record where the candidacy ended up, on the latest logged activity —
+    that row is what the work-search log shows for the job."""
+    acts = activities_for_job(job_id)
+    if not acts:
+        return RedirectResponse(f"/job/{job_id}", status_code=303)
+    latest = acts[-1]
+    had_interviews = any(a.activity_type == ActivityType.interview for a in acts)
+    mapping = {
+        "offer": ActivityResult.offered,
+        "declined": ActivityResult.rejected,
+        "progress": ActivityResult.interviewing if had_interviews else ActivityResult.pending,
+    }
+    if outcome in mapping:
+        latest.result = mapping[outcome]
+        save_activity(latest)
+    return RedirectResponse(f"/job/{job_id}", status_code=303)
 
 
 @app.get("/job/{job_id}/prep/new", response_class=HTMLResponse)
@@ -989,8 +1038,10 @@ def setup_phone(mobile_access: str = Form("")):
 
 # ---- settings: everything that used to need a text editor -----------------
 
-@app.get("/settings", response_class=HTMLResponse)
-def settings_page(request: Request, msg: str = "", err: str = ""):
+def _render_settings(request: Request, msg: str = "", err: str = "",
+                     extra: dict | None = None):
+    """The settings page, plus whatever a POST wants shown on it (suggestions,
+    a manual-mode prompt). One builder so the POSTs can't drift from the GET."""
     cfg = config_current()
     profile = {}
     pf = PROFILE_DIR / "profile.yaml"
@@ -1001,23 +1052,75 @@ def settings_page(request: Request, msg: str = "", err: str = ""):
             profile = {}
     current = load_settings()
     offered = local_models(current.local_base_url)   # one probe, see /setup
-    return templates.TemplateResponse(
-        request, "settings.html",
-        {
-            "cfg": cfg, "settings": current, "env": env_status(),
-            "claude_found": claude_cli_path(),
-            "local_base_url": current.local_base_url or LOCAL_BASE_URL_DEFAULT,
-            "local_models": offered, "local_found": bool(offered),
-            "env_labels": ENV_KEYS, "profile": profile,
-            "screening": profile.get("screening_defaults") or {},
-            "mobile_ip": lan_ip(),
-            "port": request.url.port or 8000,
-            "data_dir": str(DATA_DIR),
-            "resume_chars": len((PROFILE_DIR / "resume_master.md").read_text(encoding="utf-8"))
-            if (PROFILE_DIR / "resume_master.md").exists() else 0,
-            "msg": msg, "err": err,
-        },
-    )
+    context = {
+        "cfg": cfg, "settings": current, "env": env_status(),
+        "claude_found": claude_cli_path(),
+        "local_base_url": current.local_base_url or LOCAL_BASE_URL_DEFAULT,
+        "local_models": offered, "local_found": bool(offered),
+        "env_labels": ENV_KEYS, "profile": profile,
+        "screening": profile.get("screening_defaults") or {},
+        "mobile_ip": lan_ip(),
+        "port": request.url.port or 8000,
+        "data_dir": str(DATA_DIR),
+        "resume_chars": len((PROFILE_DIR / "resume_master.md").read_text(encoding="utf-8"))
+        if (PROFILE_DIR / "resume_master.md").exists() else 0,
+        "msg": msg, "err": err,
+    }
+    context.update(extra or {})
+    if "suggestions" in context:
+        # Round-tripped through hidden form fields so Add keeps the list up.
+        context["suggestions_json"] = json.dumps(context["suggestions"])
+    return templates.TemplateResponse(request, "settings.html", context)
+
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, msg: str = "", err: str = ""):
+    return _render_settings(request, msg, err)
+
+
+@app.post("/settings/suggest")
+def settings_suggest(request: Request):
+    """Suggest titles and pivots from the resume. Manual mode gets the prompt
+    to carry to their own chat instead of a call."""
+    if load_settings().is_manual:
+        return _render_settings(request, extra={"suggest_prompt": suggest_prompt()})
+    try:
+        return _render_settings(request, extra={"suggestions": run_suggest()})
+    except Exception as e:
+        return _render_settings(
+            request, err=f"Couldn't get suggestions: {str(e)[:160]}")
+
+
+@app.post("/settings/suggest/paste")
+def settings_suggest_paste(request: Request, reply: str = Form("")):
+    try:
+        data = parse_suggestions(reply)
+    except Exception:
+        return _render_settings(
+            request, err="Couldn't read that. Paste the model's whole JSON reply.",
+            extra={"suggest_prompt": suggest_prompt()})
+    return _render_settings(request, extra={"suggestions": data})
+
+
+@app.post("/settings/suggest/add")
+def settings_suggest_add(request: Request, query: str = Form(""),
+                         keep: str = Form("")):
+    """Add one suggested title as a search. ``keep`` carries the suggestion
+    list through the round trip so one click doesn't clear the rest."""
+    q = " ".join(query.split())
+    if q:
+        cfg = config_current()
+        searches = list(cfg.get("searches") or [])
+        if not any((s.get("query") or "").lower() == q.lower() for s in searches):
+            searches.append({"query": q, "location": "Remote"})
+        write_sources(searches, cfg["ats"]["greenhouse"], cfg["ats"]["lever"])
+    extra: dict = {}
+    if keep:
+        try:
+            extra["suggestions"] = parse_suggestions(keep)
+        except Exception:
+            pass
+    return _render_settings(request, msg=f'Added "{q}" to your searches.', extra=extra)
 
 
 @app.post("/settings/sources")

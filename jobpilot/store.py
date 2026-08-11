@@ -214,6 +214,16 @@ def job_ids_with_activity() -> set[str]:
     return {r["job_id"] for r in rows}
 
 
+def activities_for_job(job_id: str) -> list[WorkSearchActivity]:
+    """Every logged action for one job, oldest first — the candidacy's timeline."""
+    with _conn() as c:
+        rows = c.execute(
+            "SELECT data FROM activities WHERE job_id = ? ORDER BY date ASC, rowid ASC",
+            (job_id,),
+        ).fetchall()
+    return [WorkSearchActivity.model_validate_json(r["data"]) for r in rows]
+
+
 def activity_for_job(job_id: str) -> Optional[WorkSearchActivity]:
     with _conn() as c:
         row = c.execute(
